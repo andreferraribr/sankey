@@ -38,9 +38,11 @@ influx <- readxl::read_excel(temp_file_in)
 
 
 ```
+
+
 ```{r, check influx data frame}
 ## change names of the columns to increase readability
-colnames(influx)<- c("origem","origem_cod","especie","especie_cod","fonte","fonte_cod","ano","esfera_cod","esfera","influx_reais","influx_ipca","influx_pib")
+colnames(influx)<- c("origem","origem_cod","especie","especie_cod","fonte","fonte_cod","ano","esfera_in_cod","esfera_in","influx_reais","influx_ipca","influx_pib")
 
 # summary influx
 summary(influx)
@@ -71,11 +73,59 @@ outflux is the outlay either in reais (current BRL), IPCA (Inflation) or PIB (GD
 
 ## change names of the columns to increase readability
 
-colnames(outflux)<-c("ano","cat_cod","cat","gnd_cod","gnd","elemento_cod","elemento","esfera_cod","esfera","fonte_cod","fonte","res_primario_cod","res_primario","outflux_reais","outflux_ipca", "outflux_pib")
+colnames(outflux)<-c("ano","cat_cod","cat","gnd_cod","gnd","elemento_cod","elemento","esfera_out_cod","esfera_out","fonte_cod","fonte","res_primario_cod","res_primario","outflux_reais","outflux_ipca", "outflux_pib")
 
 summary(outflux)
 str(outflux)
 tail(outflux)
 
 ```
+
+
+```{r}
+
+# contar
+receitas <- unique(as.character(influx$esfera_in))
+fontes <- unique(as.character(influx$fonte))
+
+
+## número de linhas
+rec_size <- NROW(unique(influx$esfera_in))
+fonte_size <- NROW(unique(influx$fonte))
+linhas <-rec_size+fonte_size-1
+
+
+nodes <- data.frame(node = c(0:linhas), 
+                     name = c(receitas, fontes))
+View(nodes)
+```
+
+
+
+```{r}
+influx <- merge(influx, nodes, by.x = "esfera_in", by.y = "name")
+influx <- merge(influx, nodes, by.x = "fonte", by.y = "name")
+links <- influx[ , c("node.x", "node.y", "influx_pib")]
+colnames(links) <- c("source", "target", "value")
+
+networkD3::sankeyNetwork(Links = links, Nodes = nodes, Source = 'source', 
+                         Target = 'target', Value = 'value', NodeID = 'name',
+                         units = 'influx_pib')
+sankeyNetwork(Links = links, Nodes = nodes,
+ Source = "source", Target = "target",
+ Value = "value", NodeID = "name",
+ fontSize= 12, nodeWidth = 30)
+
+sum(influx$influx_reais)
+sankeyNetwork(Links = links, 
+              Nodes = nodes, 
+              Source = "source",
+              Target = "target", 
+              Value = "value", 
+              NodeID = "name",
+              units = "R$", # optional units name for popups
+              fontSize = 6, 
+              nodeWidth = 20)
+```
+
 
