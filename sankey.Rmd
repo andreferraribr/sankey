@@ -19,15 +19,50 @@ library(readxl)
 
 ## teste
 prepare data
+
+guidence found here: [https://community.rstudio.com/t/read-xlsx-from-github/9386]
+thanks to: Christophe Dervieux [https://community.rstudio.com/u/cderv/summary]
+
 ```{r}
-# import table
-rec_snakey <- read_excel("C:/Users/03092181794/Desktop/R/sankey/rec_snakey.xlsx")
+# import revenue from girhub
+
+github_link <- "https://github.com/andreferraribr/sankey/blob/master/rec.xlsx?raw=true"
+library(httr)
+temp_file_in <- tempfile(fileext = ".xlsx")
+req <- GET(github_link, 
+          # authenticate using GITHUB_PAT
+           authenticate(Sys.getenv("GITHUB_PAT"), ""),
+          # write result to disk
+           write_disk(path = temp_file_in))
+rec_snakey <- readxl::read_excel(temp_file_in)
+
+
+
+
+
+
 names(rec_snakey)[names(rec_snakey) == "Saldo R$ (Item Informação)"] <- "arrecadado"
 rec_snakey<- filter(rec_snakey, arrecadado > 100000000000)
 
 names(rec_snakey)[names(rec_snakey) == "NRE3 Espécie Receita"] <- "receita"
 names(rec_snakey)[names(rec_snakey) == "Fonte Recursos"] <- "fonte"
 names(rec_snakey)[names(rec_snakey) == "Saldo R$ (Item Informação)"] <- "arrecadado"
+
+
+
+
+
+
+github_link <- "https://github.com/andreferraribr/sankey/blob/master/out.xlsx?raw=true"
+library(httr)
+temp_file_out <- tempfile(fileext = ".xlsx")
+req <- GET(github_link, 
+          # authenticate using GITHUB_PAT
+           authenticate(Sys.getenv("GITHUB_PAT"), ""),
+          # write result to disk
+           write_disk(path = temp_file_out))
+desp_snakey <- readxl::read_excel(temp_file_out)
+
 
 desp_snakey <- read_excel("C:/Users/03092181794/Desktop/R/sankey/desp_snakey.xlsx")
 names(desp_snakey)[names(desp_snakey) == "Fonte Recursos"] <- "fonte"
@@ -186,7 +221,7 @@ loadWorkbook_url <- function(url) {
 
 
 ```{r}
-github_link <- "https://github.com/CerebralMastication/Presentations/raw/master/test.xlsx"
+github_link <- "https://github.com/andreferraribr/sankey/blob/master/rec.xlsx?raw=true"
 library(httr)
 temp_file <- tempfile(fileext = ".xlsx")
 req <- GET(github_link, 
