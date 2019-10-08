@@ -1,0 +1,204 @@
+---
+title: "sankey"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+load libraries
+
+```{r}
+library(dplyr)
+library(networkD3)
+library(tidyr)
+library(readxl)
+```
+
+## teste
+prepare data
+```{r}
+# import table
+rec_snakey <- read_excel("C:/Users/03092181794/Desktop/R/sankey/rec_snakey.xlsx")
+names(rec_snakey)[names(rec_snakey) == "Saldo R$ (Item Informação)"] <- "arrecadado"
+rec_snakey<- filter(rec_snakey, arrecadado > 100000000000)
+
+names(rec_snakey)[names(rec_snakey) == "NRE3 Espécie Receita"] <- "receita"
+names(rec_snakey)[names(rec_snakey) == "Fonte Recursos"] <- "fonte"
+names(rec_snakey)[names(rec_snakey) == "Saldo R$ (Item Informação)"] <- "arrecadado"
+
+desp_snakey <- read_excel("C:/Users/03092181794/Desktop/R/sankey/desp_snakey.xlsx")
+names(desp_snakey)[names(desp_snakey) == "Fonte Recursos"] <- "fonte"
+names(desp_snakey)[names(desp_snakey) == "Elemento Despesa"] <- "despesa"
+names(desp_snakey)[names(desp_snakey) == "Saldo R$ (Item Informação)"] <- "pago"
+
+```
+
+
+```{r}
+receitas <- unique(as.character(rec_snakey$receita))
+fontes <- unique(as.character(rec_snakey$fonte))
+
+
+## número de linhas
+rec_size <- NROW(unique(rec_snakey$receita))
+fonte_size <- NROW(unique(rec_snakey$fonte))
+linhas <-rec_size+fonte_size-1
+
+
+nodes <- data.frame(node = c(0:linhas), 
+                     name = c(receitas, fontes))
+View(nodes)
+```
+
+
+```{r}
+rec_snakey <- merge(rec_snakey, nodes, by.x = "receita", by.y = "name")
+rec_snakey <- merge(rec_snakey, nodes, by.x = "fonte", by.y = "name")
+links <- rec_snakey[ , c("node.x", "node.y", "arrecadado")]
+colnames(links) <- c("source", "target", "value")
+
+networkD3::sankeyNetwork(Links = links, Nodes = nodes, Source = 'source', 
+                         Target = 'target', Value = 'value', NodeID = 'name',
+                         units = 'arrecadado')
+sankeyNetwork(Links = links, Nodes = nodes,
+ Source = "source", Target = "target",
+ Value = "value", NodeID = "name",
+ fontSize= 12, nodeWidth = 30)
+
+
+sankeyNetwork(Links = links, 
+              Nodes = nodes, 
+              Source = "source",
+              Target = "target", 
+              Value = "value", 
+              NodeID = "name",
+              units = "R$", # optional units name for popups
+              fontSize = 6, 
+              nodeWidth = 20)
+```
+
+
+prepare data
+```{r}
+rec_snakey2 <- read_excel("C:/Users/03092181794/Desktop/notes/notes/rec_snakey.xlsx")
+names(rec_snakey2)[names(rec_snakey2) == "Saldo R$ (Item Informação)"] <- "arrecadado"
+
+
+names(rec_snakey2)[names(rec_snakey2) == "NRE3 Espécie Receita"] <- "receita2"
+names(rec_snakey2)[names(rec_snakey2) == "Fonte Recursos"] <- "fonte2"
+names(rec_snakey2)[names(rec_snakey2) == "Saldo R$ (Item Informação)"] <- "arrecadado"
+
+rec_snakey2<- rec_snakey2 %>%
+  group_by(receita2, fonte2)%>%
+  mutate(receita = ifelse(arrecadado > 50000000000, receita2, "demais_rec")) %>%
+  mutate(fonte = ifelse(arrecadado > 50000000000, fonte2, "demais_fonte"))
+rec_snakey2 %>%select(receita, fonte, arrecadado)
+
+
+
+desp_snakey <- read_excel("C:/Users/03092181794/Desktop/notes/notes/desp_snakey.xlsx")
+names(desp_snakey)[names(desp_snakey) == "Fonte Recursos"] <- "fonte"
+names(desp_snakey)[names(desp_snakey) == "Elemento Despesa"] <- "despesa"
+names(desp_snakey)[names(desp_snakey) == "Saldo R$ (Item Informação)"] <- "pago"
+
+
+desp_snakey <- desp_snakey  %>%
+  group_by(despesa, fonte)%>%
+  mutate(despesa2 = ifelse(pago > 50000000000, despesa, "demais_desp")) %>%
+  mutate(fonte2 = ifelse(pago > 50000000000, fonte, "demais_fonte"))
+desp_snakey %>%select(despesa2, fonte2, pago)
+```
+
+
+```{r}
+receitas <- unique(as.character(rec_snakey2$receita))
+fontes <- unique(as.character(rec_snakey2$fonte))
+despesas <- unique(as.character(desp_snakey$despesa2))
+
+
+## número de linhas
+rec_size <- NROW(unique(rec_snakey2$receita))
+fonte_size <- NROW(unique(rec_snakey2$fonte))
+desp_size <- NROW(unique(desp_snakey$despesa2))
+linhas <-rec_size+fonte_size+desp_size-1
+
+
+nodes <- data.frame(node = c(0:linhas), 
+                     name = c(receitas, fontes,despesas))
+View(nodes)
+```
+
+
+```{r}
+rec_snakey2 <- merge(rec_snakey2, nodes, by.x = "receita", by.y = "name")
+rec_snakey2 <- merge(rec_snakey2, nodes, by.x = "fonte", by.y = "name")
+
+links_rec <- rec_snakey2[ , c("node.x", "node.y", "arrecadado")]
+
+
+desp_snakey <- merge(desp_snakey, nodes, by.x = "fonte2", by.y = "name")
+desp_snakey <- merge(desp_snakey, nodes, by.x = "despesa2", by.y = "name")
+
+links_desp <- desp_snakey[ , c( "node.y", "node.x", "pago")]
+names(links_desp)[names(links_desp) == "pago"] <- "arrecadado"
+
+links <- rbind(links_rec,links_desp)
+
+colnames(links) <- c("source", "target", "value")
+
+networkD3::sankeyNetwork(Links = links, Nodes = nodes, Source = 'source', 
+                         Target = 'target', Value = 'value', NodeID = 'name',
+                         units = 'arrecadado')
+sankeyNetwork(Links = links, Nodes = nodes,
+ Source = "source", Target = "target",
+ Value = "value", NodeID = "name",
+ fontSize= 12, nodeWidth = 30)
+
+
+zzz<-sankeyNetwork(Links = links, 
+              Nodes = nodes, 
+              Source = "source",
+              Target = "target", 
+              Value = "value", 
+              NodeID = "name",
+              units = "R$", # optional units name for popups
+              fontSize = 6, 
+              nodeWidth = 20)
+zzz
+```
+
+```{r}
+rec_snakey2<- rec_snakey2 %>%
+  group_by(fonte, receita)%>%
+  mutate(receita2 = ifelse(arrecadado > 100000000000, receita, "demais"))
+```
+
+```{r}
+loadWorkbook_url <- function(url) {
+    temp_file <- tempfile(fileext ="https://github.com/CerebralMastication/Presentations/raw/master/test.xlsx")
+    download.file(url = url, destfile = temp_file, mode = "wb", quiet = TRUE)
+    loadWorkbook(temp_file)
+}
+```
+
+
+```{r}
+github_link <- "https://github.com/CerebralMastication/Presentations/raw/master/test.xlsx"
+library(httr)
+temp_file <- tempfile(fileext = ".xlsx")
+req <- GET(github_link, 
+          # authenticate using GITHUB_PAT
+           authenticate(Sys.getenv("GITHUB_PAT"), ""),
+          # write result to disk
+           write_disk(path = temp_file))
+tab <- readxl::read_excel(temp_file)
+tab
+
+unlink(temp_file)
+
+
+```
+
