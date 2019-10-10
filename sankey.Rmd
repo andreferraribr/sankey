@@ -180,7 +180,7 @@ sankeyNetwork(Links = links,
               fontSize = 6, 
               nodeWidth = 20)
 ```
-```{r, new test}
+```{r, influx 2 levels: origem, esfera}
 
 influx_2018 <- influx%>%
   filter(ano =="2018" & influx_reais > 1)
@@ -200,6 +200,9 @@ influx_2018 <- merge(influx_2018, nodes_df, by.x = "origem", by.y = "name")
 View(influx_2018)
 influx_2018 <- merge(influx_2018, nodes_df, by.x = "esfera_in", by.y = "name")
 View(influx_2018)
+
+
+
 
 sankey_links <- influx_2018[ , c("node.x", "node.y", "influx_reais")]
 colnames(sankey_links) <- c("source", "target", "value")
@@ -223,3 +226,223 @@ sankeyNetwork(Links = sankey_links,
               fontSize = 6, 
               nodeWidth = 80)
 ```
+```{r, influx 3 levels: origem, esfera and origem}
+
+influx_2018 <- influx%>%
+  filter(ano =="2018" & influx_reais > 1000000000)
+
+influx_2018<- select(influx_2018, origem, especie, influx_reais)
+
+## firs link
+tn<-influx_2018$origem
+sn<-influx_2018$especie
+target_node <- as.factor(tn)
+source_node <- as.factor(sn)
+
+
+nodes_df <- data.frame(node = c(0: ( length(levels(target_node)) + length(levels(source_node)) - 1 )),                     name = c( levels(target_node), levels(source_node)))
+
+influx_2018 <- merge(influx_2018, nodes_df, by.x = "origem", by.y = "name")
+View(influx_2018)
+influx_2018 <- merge(influx_2018, nodes_df, by.x = "especie", by.y = "name")
+View(influx_2018)
+
+
+
+
+sankey_links <- influx_2018[ , c("node.x", "node.y", "influx_reais")]
+colnames(sankey_links) <- c("source", "target", "value")
+
+## second link
+
+influx_2018_1 <- influx%>%
+  filter(ano =="2018" & influx_reais > 1)
+
+influx_2018_1<- select(influx_2018_1,esfera_in, especie, influx_reais)
+
+tn1<-influx_2018$esfera_in
+sn1<-influx_2018$especie
+target_node1 <- as.factor(tn1)
+source_node1 <- as.factor(sn1)
+
+
+nodes_df1 <- data.frame(node = c(0: ( length(levels(target_node1)) + length(levels(source_node1)) - 1 )),                     name = c( levels(target_node1), levels(source_node1)))
+
+influx_2018_1 <- merge(influx_2018_1, nodes_df1, by.x = "especie", by.y = "name")
+View(influx_2018_1)
+influx_2018_1 <- merge(influx_2018_1, nodes_df1, by.x = "esfera_in", by.y = "name")
+View(influx_2018_1)
+
+
+
+
+sankey_links_1 <- influx_2018_1[ , c("node.x", "node.y", "influx_reais")]
+colnames(sankey_links_1) <- c("source", "target", "value")
+
+## plot
+
+networkD3::sankeyNetwork(Links = sankey_links, Nodes = nodes_df, Source = 'source', 
+                         Target = 'target', Value = 'value', NodeID = 'name',
+                         units = 'influx_reais')
+sankeyNetwork(Links = sankey_links, Nodes = nodes_df,
+ Source = "source", Target = "target",
+ Value = "value", NodeID = "name",
+ fontSize= 12, nodeWidth = 30)
+
+sum(influx$influx_reais)
+sankeyNetwork(Links = sankey_links, 
+              Nodes = nodes_df, 
+              Source = "source",
+              Target = "target", 
+              Value = "value", 
+              NodeID = "name",
+              units = "R$", # optional units name for popups
+              fontSize = 6, 
+              nodeWidth = 80)
+```
+
+
+
+
+```{r, group_by to create nodes 2 levels}
+
+data_by_group<- influx %>%
+  filter(ano=="2018", influx_reais>0)%>%
+  group_by(origem, esfera_in)%>%
+  summarise(total = sum(influx_reais))
+
+
+
+
+## número de linhas
+source_node_size<-NROW(unique(data_by_group[,1]))
+target_node_size<-NROW(unique(data_by_group[,2]))
+l1<-source_node_size+target_node_size
+
+
+# nome itens nodes
+source_node_itens<-unique(as.character(data_by_group$origem))
+target_node_itens<-unique(as.character(data_by_group$esfera_in))
+
+nodes_by_group <- data.frame(node = c(0: (source_node_size + target_node_size  - 1 )), 
+                    name = c( source_node_itens, target_node_itens)) 
+
+
+data_by_group <- merge(data_by_group, nodes_by_group, by.x = "origem", by.y = "name")
+View(data_by_group)
+data_by_group <- merge(data_by_group, nodes_by_group, by.x = "esfera_in", by.y = "name")
+sum(data_by_group$total)
+
+
+
+data_by_group_links <- data_by_group[ , c("node.x", "node.y", "total")]
+colnames(data_by_group_links) <- c("source", "target", "value")
+
+
+sankeyNetwork(Links = data_by_group_links, 
+              Nodes = nodes_by_group, 
+              Source = "source",
+              Target = "target", 
+              Value = "value", 
+              NodeID = "name",
+              units = "R$", # optional units name for popups
+              fontSize = 6, 
+              nodeWidth = 80)
+
+```
+
+
+```{r, group_by to create nodes 3 levels}
+
+data_by_group_level_2<- outflux %>%
+  filter(ano=="2018", outflux_reais>0)%>%
+  group_by(gnd, esfera_out)%>%
+  summarise(total = sum(outflux_reais))
+
+
+## número de linhas
+source_node_size_level_2<-NROW(unique(data_by_group_level_2[,1]))
+target_node_size_level_2<-NROW(unique(data_by_group_level_2[,2]))
+
+
+# nome itens nodes
+source_node_itens_level_2<-unique(as.character(data_by_group_level_2$esfera_out))
+target_node_itens_level_2<-unique(as.character(data_by_group_level_2$gnd))
+
+nodes_by_group_2 <- data.frame(node = c(0: (source_node_size_level_2 + target_node_size_level_2  - 1 )), 
+                    name = c( 
+                              source_node_itens_level_2, target_node_itens_level_2)) 
+
+
+data_by_group_level_2 <- merge(data_by_group_level_2, nodes_by_group_2, by.x = "esfera_out", by.y = "name")
+View(data_by_group_level_2)
+data_by_group_level_2 <- merge(data_by_group_level_2, nodes_by_group_2, by.x = "gnd", by.y = "name")
+View(data_by_group_level_2)
+
+
+
+
+data_by_group_links_level_2 <- data_by_group_level_2[ , c("node.x", "node.y", "total")]
+colnames(data_by_group_links_level_2) <- c("source", "target", "value")
+
+bind_links<-rbind(data_by_group_links,data_by_group_links_level_2)
+
+sankeyNetwork(Links = data_by_group_links_level_2 , 
+              Nodes = nodes_by_group_2, 
+              Source = "source",
+              Target = "target", 
+              Value = "value", 
+              NodeID = "name",
+              units = "R$", # optional units name for popups
+              fontSize = 6, 
+              nodeWidth = 80)
+
+```
+
+```{r, group_by to create nodes 3 levels}
+
+data_by_group_level_2<- outflux %>%
+  filter(ano=="2018", outflux_reais>0)%>%
+  group_by(gnd, esfera_out_cod)%>%
+  summarise(total = sum(outflux_reais))
+
+
+## número de linhas
+source_node_size_level_2<-NROW(unique(data_by_group_level_2[,1]))
+target_node_size_level_2<-NROW(unique(data_by_group_level_2[,2]))
+
+
+# nome itens nodes
+source_node_itens_level_2<-unique(as.character(data_by_group_level_2$esfera_out_cod))
+target_node_itens_level_2<-unique(as.character(data_by_group_level_2$gnd))
+
+nodes_by_group_2 <- data.frame(node = c(0: (l1+source_node_size_level_2 + target_node_size_level_2  - 1 )), 
+                    name = c( source_node_itens, target_node_itens,
+                              source_node_itens_level_2, target_node_itens_level_2)) 
+
+
+data_by_group_level_2 <- merge(data_by_group_level_2, nodes_by_group_2, by.x = "esfera_out_cod", by.y = "name")
+View(data_by_group_level_2)
+data_by_group_level_2 <- merge(data_by_group_level_2, nodes_by_group_2, by.x = "gnd", by.y = "name")
+View(data_by_group_level_2)
+
+
+
+
+data_by_group_links_level_2 <- data_by_group_level_2[ , c("node.x", "node.y", "total")]
+colnames(data_by_group_links_level_2) <- c("source", "target", "value")
+
+bind_links<-rbind(data_by_group_links,data_by_group_links_level_2)
+
+sankeyNetwork(Links = bind_links , 
+              Nodes = nodes_by_group_2, 
+              Source = "source",
+              Target = "target", 
+              Value = "value", 
+              NodeID = "name",
+              units = "R$", # optional units name for popups
+              fontSize = 6, 
+              nodeWidth = 80)
+
+```
+
