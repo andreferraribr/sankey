@@ -84,15 +84,32 @@ tail(outflux)
 
 ```{r}
 
-# contar
-receitas <- unique(as.character(influx$esfera_in))
-fontes <- unique(as.character(influx$fonte))
+# choose nodes
+
+from_node <- as.factor(influx$esfera_in)
+to_node <- as.factor(influx$origem)
+
+
+# find node lenght
+to_node_lenght<- length(levels(to_node))
+from_node_lenght<-length(levels(from_node))
 
 
 ## número de linhas
 rec_size <- NROW(unique(influx$esfera_in))
 fonte_size <- NROW(unique(influx$fonte))
 linhas <-rec_size+fonte_size-1
+
+
+# nome itens nodes
+receitas <- unique(as.character(influx$esfera_in))
+fontes <- unique(as.character(influx$fonte))
+
+to_node_itens<- (levels(to_node))
+from_node_itens<-(levels(from_node))
+
+nodes1 <- data.frame(node = c(0: (from_node_lenght + to_node_lenght  - 1 )), 
+                    name = c( from_node_itens, to_node_itens))
 
 
 nodes <- data.frame(node = c(0:linhas), 
