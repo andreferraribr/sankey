@@ -1,0 +1,203 @@
+---
+title: "sankey"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+load libraries
+
+```{r, load libraries}
+library(dplyr)
+library(networkD3)
+library(tidyr)
+library(readxl)
+```
+
+## teste
+create two data frames: a) influx for revenue; b) outflux for outlays
+
+guidence found here: [https://community.rstudio.com/t/read-xlsx-from-github/9386]
+thanks to: Christophe Dervieux [https://community.rstudio.com/u/cderv/summary]
+
+```{r, create influx data frame}
+
+# create data frame influx with revenue data
+influx <- read_excel("rec.xlsx")
+
+
+```
+
+
+```{r, check influx data frame}
+## change names of the columns to increase readability
+colnames(influx)<- c("origem","origem_cod","especie","especie_cod","fonte","fonte_cod","ano","esfera_in_cod","esfera_in","influx_reais","influx_ipca","influx_pib")
+
+```
+
+
+
+
+```{r, create outflux data frame}
+outflux <- read_excel("out.xlsx")
+
+```
+outflux is the outlay either in reais (current BRL), IPCA (Inflation) or PIB (GDP).
+
+
+```{r, check outflux data frame}
+
+## change names of the columns to increase readability
+
+colnames(outflux)<-c("ano","cat_cod","cat","gnd_cod","gnd","elemento_cod","elemento","esfera_out_cod","esfera_out","fonte_cod","fonte","res_primario_cod","res_primario","outflux_reais","outflux_ipca", "outflux_pib")
+
+
+
+```
+
+
+
+```{r, group_by to create nodes 2 levels}
+
+data_by_group<- influx %>%
+  filter(ano=="2018", influx_reais>0)%>%
+  group_by(origem, esfera_in)%>%
+  summarise(total = sum(influx_reais))
+
+
+
+
+## número de linhas
+source_node_size<-NROW(unique(data_by_group[,1]))
+target_node_size<-NROW(unique(data_by_group[,2]))
+l1<-source_node_size+target_node_size
+
+
+# nome itens nodes
+source_node_itens<-unique(as.character(data_by_group$origem))
+target_node_itens<-unique(as.character(data_by_group$esfera_in))
+
+nodes_by_group <- data.frame(node = c(0: (source_node_size + target_node_size  - 1 )), 
+                    name = c( source_node_itens, target_node_itens)) 
+
+
+data_by_group <- merge(data_by_group, nodes_by_group, by.x = "origem", by.y = "name")
+View(data_by_group)
+data_by_group <- merge(data_by_group, nodes_by_group, by.x = "esfera_in", by.y = "name")
+sum(data_by_group$total)
+
+
+
+data_by_group_links <- data_by_group[ , c("node.x", "node.y", "total")]
+colnames(data_by_group_links) <- c("source", "target", "value")
+
+
+sankeyNetwork(Links = data_by_group_links, 
+              Nodes = nodes_by_group, 
+              Source = "source",
+              Target = "target", 
+              Value = "value", 
+              NodeID = "name",
+              units = "R$", # optional units name for popups
+              fontSize = 6, 
+              nodeWidth = 80)
+
+```
+
+
+```{r, group_by to create nodes 3 levels}
+
+data_by_group_level_2<- outflux %>%
+  filter(ano=="2018", outflux_reais>0)%>%
+  group_by(gnd, esfera_out)%>%
+  summarise(total = sum(outflux_reais))
+
+
+## número de linhas
+source_node_size_level_2<-NROW(unique(data_by_group_level_2[,1]))
+target_node_size_level_2<-NROW(unique(data_by_group_level_2[,2]))
+
+
+# nome itens nodes
+source_node_itens_level_2<-unique(as.character(data_by_group_level_2$esfera_out))
+target_node_itens_level_2<-unique(as.character(data_by_group_level_2$gnd))
+
+nodes_by_group_2 <- data.frame(node = c(0: (source_node_size_level_2 + target_node_size_level_2  - 1 )), 
+                    name = c( 
+                              source_node_itens_level_2, target_node_itens_level_2)) 
+
+
+data_by_group_level_2 <- merge(data_by_group_level_2, nodes_by_group_2, by.x = "esfera_out", by.y = "name")
+View(data_by_group_level_2)
+data_by_group_level_2 <- merge(data_by_group_level_2, nodes_by_group_2, by.x = "gnd", by.y = "name")
+View(data_by_group_level_2)
+
+
+
+
+data_by_group_links_level_2 <- data_by_group_level_2[ , c("node.x", "node.y", "total")]
+colnames(data_by_group_links_level_2) <- c("source", "target", "value")
+
+bind_links<-rbind(data_by_group_links,data_by_group_links_level_2)
+
+sankeyNetwork(Links = data_by_group_links_level_2 , 
+              Nodes = nodes_by_group_2, 
+              Source = "source",
+              Target = "target", 
+              Value = "value", 
+              NodeID = "name",
+              units = "R$", # optional units name for popups
+              fontSize = 6, 
+              nodeWidth = 80)
+
+```
+```{r, group_by to create nodes 3 levels}
+
+data_by_group_level_2<- outflux %>%
+  filter(ano=="2018", outflux_reais>0)%>%
+  group_by(gnd, esfera_out_cod)%>%
+  summarise(total = sum(outflux_reais))
+
+
+## número de linhas
+source_node_size_level_2<-NROW(unique(data_by_group_level_2[,1]))
+target_node_size_level_2<-NROW(unique(data_by_group_level_2[,2]))
+
+
+# nome itens nodes
+source_node_itens_level_2<-unique(as.character(data_by_group_level_2$esfera_out_cod))
+target_node_itens_level_2<-unique(as.character(data_by_group_level_2$gnd))
+
+nodes_by_group_2 <- data.frame(node = c(0: (l1+source_node_size_level_2 + target_node_size_level_2  - 1 )), 
+                    name = c( source_node_itens, target_node_itens,
+                              source_node_itens_level_2, target_node_itens_level_2)) 
+
+
+data_by_group_level_2 <- merge(data_by_group_level_2, nodes_by_group_2, by.x = "esfera_out_cod", by.y = "name")
+View(data_by_group_level_2)
+data_by_group_level_2 <- merge(data_by_group_level_2, nodes_by_group_2, by.x = "gnd", by.y = "name")
+View(data_by_group_level_2)
+
+
+
+
+data_by_group_links_level_2 <- data_by_group_level_2[ , c("node.x", "node.y", "total")]
+colnames(data_by_group_links_level_2) <- c("source", "target", "value")
+
+bind_links<-rbind(data_by_group_links,data_by_group_links_level_2)
+
+sankeyNetwork(Links = bind_links , 
+              Nodes = nodes_by_group_2, 
+              Source = "source",
+              Target = "target", 
+              Value = "value", 
+              NodeID = "name",
+              units = "R$", # optional units name for popups
+              fontSize = 6, 
+              nodeWidth = 80)
+
+```
+
