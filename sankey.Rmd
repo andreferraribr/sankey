@@ -50,6 +50,12 @@ str(influx)
 tail(influx)
 ```
 
+```{r, short version}
+
+
+```
+
+
 
 
 ```{r, create outflux data frame}
@@ -88,6 +94,7 @@ tail(outflux)
 
 from_node <- as.factor(influx$esfera_in)
 to_node <- as.factor(influx$origem)
+
 
 
 # find node lenght
@@ -146,3 +153,73 @@ sankeyNetwork(Links = links,
 ```
 
 
+
+
+```{r, nodes1}
+sankey_nodes1 <- merge(influx, nodes1, by.x = "esfera_in", by.y = "name")
+sankey_nodes1 <- merge(influx, nodes1, by.x = "origem", by.y = "name")
+links <- sankey_nodes1[ , c("node.x", "node.y", "influx_pib")]
+colnames(links) <- c("source", "target", "value")
+
+networkD3::sankeyNetwork(Links = links, Nodes = nodes1, Source = 'source', 
+                         Target = 'target', Value = 'value', NodeID = 'name',
+                         units = 'influx_pib')
+sankeyNetwork(Links = links, Nodes = nodes1,
+ Source = "source", Target = "target",
+ Value = "value", NodeID = "name",
+ fontSize= 12, nodeWidth = 30)
+
+sum(sankey_nodes1$influx_reais)
+sankeyNetwork(Links = links, 
+              Nodes = nodes1, 
+              Source = "source",
+              Target = "target", 
+              Value = "value", 
+              NodeID = "name",
+              units = "R$", # optional units name for popups
+              fontSize = 6, 
+              nodeWidth = 20)
+```
+```{r, new test}
+
+influx_2018 <- influx%>%
+  filter(ano =="2018" & influx_reais > 1)
+
+influx_2018<- select(influx_2018, origem,esfera_in, influx_reais)
+
+## new test
+tn<-influx_2018$esfera_in
+sn<-influx_2018$origem
+target_node <- as.factor(tn)
+source_node <- as.factor(sn)
+
+
+nodes_df <- data.frame(node = c(0: ( length(levels(target_node)) + length(levels(source_node)) - 1 )),                     name = c( levels(target_node), levels(source_node)))
+
+influx_2018 <- merge(influx_2018, nodes_df, by.x = "origem", by.y = "name")
+View(influx_2018)
+influx_2018 <- merge(influx_2018, nodes_df, by.x = "esfera_in", by.y = "name")
+View(influx_2018)
+
+sankey_links <- influx_2018[ , c("node.x", "node.y", "influx_reais")]
+colnames(sankey_links) <- c("source", "target", "value")
+
+networkD3::sankeyNetwork(Links = sankey_links, Nodes = nodes_df, Source = 'source', 
+                         Target = 'target', Value = 'value', NodeID = 'name',
+                         units = 'influx_reais')
+sankeyNetwork(Links = sankey_links, Nodes = nodes_df,
+ Source = "source", Target = "target",
+ Value = "value", NodeID = "name",
+ fontSize= 12, nodeWidth = 30)
+
+sum(influx$influx_reais)
+sankeyNetwork(Links = sankey_links, 
+              Nodes = nodes_df, 
+              Source = "source",
+              Target = "target", 
+              Value = "value", 
+              NodeID = "name",
+              units = "R$", # optional units name for popups
+              fontSize = 6, 
+              nodeWidth = 80)
+```
