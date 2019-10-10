@@ -60,7 +60,7 @@ colnames(outflux)<-c("ano","cat_cod","cat","gnd_cod","gnd","elemento_cod","eleme
 
 
 
-```{r, group_by to create nodes 2 levels}
+```{r, influx group_by to create nodes 2 levels}
 
 data_by_group<- influx %>%
   filter(ano=="2018", influx_reais>0)%>%
@@ -87,6 +87,52 @@ nodes_by_group <- data.frame(node = c(0: (source_node_size + target_node_size  -
 data_by_group <- merge(data_by_group, nodes_by_group, by.x = "origem", by.y = "name")
 View(data_by_group)
 data_by_group <- merge(data_by_group, nodes_by_group, by.x = "esfera_in", by.y = "name")
+sum(data_by_group$total)
+
+
+
+data_by_group_links <- data_by_group[ , c("node.x", "node.y", "total")]
+colnames(data_by_group_links) <- c("source", "target", "value")
+
+
+sankeyNetwork(Links = data_by_group_links, 
+              Nodes = nodes_by_group, 
+              Source = "source",
+              Target = "target", 
+              Value = "value", 
+              NodeID = "name",
+              units = "R$", # optional units name for popups
+              fontSize = 6, 
+              nodeWidth = 80)
+
+```
+```{r, outflux group_by to create nodes 2 levels}
+
+data_by_group<- outflux %>%
+  filter(ano=="2018", outflux_reais>10000000000)%>%
+  group_by(fonte, esfera_out)%>%
+  summarise(total = sum(outflux_reais))
+
+
+
+
+## número de linhas
+source_node_size<-NROW(unique(data_by_group[,1]))
+target_node_size<-NROW(unique(data_by_group[,2]))
+l1<-source_node_size+target_node_size
+
+
+# nome itens nodes
+source_node_itens<-unique(as.character(data_by_group$fonte))
+target_node_itens<-unique(as.character(data_by_group$esfera_out))
+
+nodes_by_group <- data.frame(node = c(0: (source_node_size + target_node_size  - 1 )), 
+                    name = c( source_node_itens, target_node_itens)) 
+
+
+data_by_group <- merge(data_by_group, nodes_by_group, by.x = "fonte", by.y = "name")
+View(data_by_group)
+data_by_group <- merge(data_by_group, nodes_by_group, by.x = "esfera_out", by.y = "name")
 sum(data_by_group$total)
 
 
