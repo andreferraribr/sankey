@@ -15,6 +15,11 @@ library(dplyr)
 library(networkD3)
 library(tidyr)
 library(readxl)
+library(ggplot2)
+library(treemap)
+
+library(htmlwidgets)
+library(DT)
 ```
 
 ## teste
@@ -26,7 +31,7 @@ thanks to: Christophe Dervieux [https://community.rstudio.com/u/cderv/summary]
 ```{r, create influx data frame}
 
 # create data frame influx with revenue data
-influx <- read_excel("rec.xlsx")
+influx <- read_excel("influx.xlsx")
 
 
 ```
@@ -34,7 +39,9 @@ influx <- read_excel("rec.xlsx")
 
 ```{r, check influx data frame}
 ## change names of the columns to increase readability
-colnames(influx)<- c("origem","origem_cod","especie","especie_cod","fonte","fonte_cod","ano","esfera_in_cod","esfera_in","influx_reais","influx_ipca","influx_pib")
+colnames(influx)<- c("cat","cat_cod","origem","origem_cod","especie","especie_cod","fonte","fonte_cod","ind_pri_cod","ind_pri","ano","esfera_in_cod","esfera_in","influx_reais","influx_ipca","influx_pib")
+
+levels(influx$origem) <- gsub(" ", "\n", levels(influx$origem))
 
 ```
 
@@ -46,6 +53,8 @@ outflux <- read_excel("out.xlsx")
 
 ```
 outflux is the outlay either in reais (current BRL), IPCA (Inflation) or PIB (GDP).
+
+
 
 
 ```{r, check outflux data frame}
@@ -60,14 +69,87 @@ colnames(outflux)<-c("ano","cat_cod","cat","gnd_cod","gnd","elemento_cod","eleme
 
 
 
-```{r, influx group_by to create nodes 2 levels}
-
-data_by_group<- influx %>%
+```{r, categoria}
+df_plot<- influx %>%
   filter(ano=="2018", influx_reais>0)%>%
-  group_by(origem, esfera_in)%>%
-  summarise(total = sum(influx_reais))
+  group_by(cat )%>%
+  summarise(total = sum(influx_reais)/1000000000)
 
 
+ggplot(df_plot, aes(x = reorder(cat, total), y = total, fill = cat)) +
+  geom_col(position = "dodge", colour = "black") +
+  scale_fill_brewer(palette = "Pastel1")+
+  guides(fill = FALSE)+
+  theme(axis.text.y = element_text(angle = 00, hjust = 1, vjust = 1, size = 7))+
+  coord_flip()
+
+```
+
+
+
+
+```{r, esfera_in}
+df_plot<- influx %>%
+  filter(ano=="2018", influx_reais>0)%>%
+  group_by(esfera_in)%>%
+  summarise(total = sum(influx_reais)/1000000000)
+
+
+ggplot(df_plot, aes(x = reorder(esfera_in,total), y = total, fill = esfera_in)) +
+  geom_col(position = "dodge", colour = "black") +
+  scale_fill_brewer(palette = "Pastel1")+
+  guides(fill = FALSE)+
+  theme(axis.text.y = element_text(angle = 00, hjust = 1, vjust = 1, size = 7))+
+  coord_flip()
+
+```
+
+```{r, esfera_in seguridade e origem}
+df_plot<- influx %>%
+  filter(ano=="2018", influx_reais>0, esfera_in_cod == "S")%>%
+  group_by(esfera_in, origem)%>%
+  summarise(total = sum(influx_reais)/1000000000)
+
+arrange(df_plot,desc(total))
+
+
+
+
+ggplot(df_plot, aes(x = reorder(origem,total), y = total, fill = origem)) +
+  geom_col(position = "dodge", colour = "black") +
+  scale_fill_viridis_d()+
+  guides(fill = FALSE)+
+  theme(axis.text.y = element_text(angle = 00, hjust = 1, vjust = 1, size = 7))+
+  coord_flip()
+
+
+
+  
+```
+```{r, esfera_in fiscal e origem}
+df_plot<- influx %>%
+  filter(ano=="2018", influx_reais>0, esfera_in_cod == "F")%>%
+  group_by(esfera_in, origem)%>%
+  summarise(total = sum(influx_reais)/1000000000)
+
+arrange(df_plot,desc(total))
+
+
+
+
+ggplot(df_plot, aes(x = reorder(origem,total), y = total, fill = origem)) +
+  geom_col(position = "dodge", colour = "black") +
+  scale_fill_viridis_d()+
+  guides(fill = FALSE)+
+  theme(axis.text.y = element_text(angle = 00, hjust = 1, vjust = 1, size = 7))+
+  coord_flip()
+
+
+
+  
+```
+
+```{r, influx group_by to create nodes 2 levels}
 
 
 ## número de linhas
