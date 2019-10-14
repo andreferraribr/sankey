@@ -28,6 +28,7 @@ create two data frames: a) influx for revenue; b) outflux for outlays
 guidence found here: [https://community.rstudio.com/t/read-xlsx-from-github/9386]
 thanks to: Christophe Dervieux [https://community.rstudio.com/u/cderv/summary]
 
+
 ```{r, create influx data frame}
 
 # create data frame influx with revenue data
@@ -55,7 +56,7 @@ outflux <- read_excel("out.xlsx")
 outflux is the outlay either in reais (current BRL), IPCA (Inflation) or PIB (GDP).
 
 
-
+datatable [https://rstudio.github.io/DT/]
 
 ```{r, check outflux data frame}
 
@@ -64,26 +65,144 @@ outflux is the outlay either in reais (current BRL), IPCA (Inflation) or PIB (GD
 colnames(outflux)<-c("ano","cat_cod","cat","gnd_cod","gnd","elemento_cod","elemento","esfera_out_cod","esfera_out","fonte_cod","fonte","res_primario_cod","res_primario","outflux_reais","outflux_ipca", "outflux_pib")
 
 
-
 ```
 
 
 
-```{r, categoria}
+```{r, sankey auto 1}
 df_plot<- influx %>%
   filter(ano=="2018", influx_reais>0)%>%
-  group_by(cat )%>%
-  summarise(total = sum(influx_reais)/1000000000)
+  group_by(esfera_in,cat,ind_pri)%>%
+  summarise(total = sum(influx_reais))
 
 
-ggplot(df_plot, aes(x = reorder(cat, total), y = total, fill = cat)) +
-  geom_col(position = "dodge", colour = "black") +
-  scale_fill_brewer(palette = "Pastel1")+
-  guides(fill = FALSE)+
-  theme(axis.text.y = element_text(angle = 00, hjust = 1, vjust = 1, size = 7))+
-  coord_flip()
+
+
+
+n_nodes <- vector("integer",ncol(df_plot) )
+for (i in seq_along(df_plot)) {            # 2. sequence
+  n_nodes[[i]] <- NROW(unique(df_plot[[i]]))      # 3. body
+}
+
+
+
+
+n_names <- vector("character",ncol(df_plot) )
+for (i in seq_along(df_plot)) {            # 2. sequence
+  n_names[[i]] <- unique(df_plot[,i],incomparables = FALSE, MARGIN = 2)     # 3. body
+}
+
+
+
+
+n_names[[1]]
+
+# nome itens nodes
+
+
+nodes1 <- data.frame(node = c(0:( n_nodes[1]-1)), 
+                    name = c(n_names[[1]]))
+colnames(nodes1) <- c("node", "name")
+
+nodes2 <- data.frame(node = c(0+ n_nodes[1]:( n_nodes[2]-1 +n_nodes[1])), 
+                    name = c(n_names[[2]]))
+colnames(nodes2) <- c("node", "name")
+
+
+nodes<- rbind(nodes1,nodes2)
+
+
+df_plot <- merge(df_plot, nodes, by.x = "esfera_in", by.y = "name")
+View(df_plot)
+df_plot <- merge(df_plot, nodes, by.x = "cat", by.y = "name")
+
+
+
+sankey_links <- df_plot[ , c("node.x", "node.y", "total")]
+colnames(sankey_links) <- c("source", "target", "value")
+sankeyNetwork(Links = sankey_links , 
+              Nodes = nodes, 
+              Source = "source",
+              Target = "target", 
+              Value = "value", 
+              NodeID = "name",
+              units = "R$", # optional units name for popups
+              fontSize = 6, 
+              nodeWidth = 80)
+
 
 ```
+
+
+```{r, auto 2}
+df_plot<- influx %>%
+  filter(ano=="2018", influx_reais>0)%>%
+  group_by(cat,origem)%>%
+  summarise(total = sum(influx_reais))
+
+
+
+
+## loop para extrair número/ordem dos nodes a partir de df_plot
+n_nodes <- vector("integer",ncol(df_plot) )
+for (i in seq_along(df_plot)) {            # 2. sequence
+  n_nodes[[i]] <- NROW(unique(df_plot[[i]]))      # 3. body
+}
+
+
+
+## loop para extrair nomes dos nodes a partir de df_plot
+n_names <- vector("character",ncol(df_plot) )
+for (i in seq_along(df_plot)) {            # 2. sequence
+  n_names[[i]] <- unique(df_plot[,i],incomparables = FALSE, MARGIN = 2)     # 3. body
+}
+
+
+
+
+n_names[[1]]
+
+## criar df com ordem/nome do node para o primeiro argumento em group_by line 139
+
+
+nodes1 <- data.frame(node = c(0:( n_nodes[1]-1)), 
+                    name = c(n_names[[1]]))
+colnames(nodes1) <- c("node", "name")
+
+## criar df com ordem/nome do node para o segundo argumento em group_by line 139
+## Adicionar n_nodes[1] para agregar valor do node. Caso contrário iniciaria em zero.
+nodes2 <- data.frame(node = c(0+ n_nodes[1]:( n_nodes[2]-1 +n_nodes[1])), 
+                    name = c(n_names[[2]]))
+colnames(nodes2) <- c("node", "name")
+
+## juntar os nodes
+nodes<- rbind(nodes1,nodes2)
+
+
+## LEMBRAR DE ALTERAR by.x == primeiro argumento em group_by line 139
+df_plot <- merge(df_plot, nodes, by.x = "cat", by.y = "name")
+
+
+## LEMBRAR DE ALTERAR  by.x == segundo argumento em group_by line 139
+df_plot <- merge(df_plot, nodes, by.x = "origem", by.y = "name")
+
+
+
+sankey_links <- df_plot[ , c("node.x", "node.y", "total")]
+colnames(sankey_links) <- c("source", "target", "value")
+sankeyNetwork(Links = sankey_links , 
+              Nodes = nodes, 
+              Source = "source",
+              Target = "target", 
+              Value = "value", 
+              NodeID = "name",
+              units = "R$", # optional units name for popups
+              fontSize = 6, 
+              nodeWidth = 80)
+
+
+```
+
 
 
 
@@ -149,82 +268,41 @@ ggplot(df_plot, aes(x = reorder(origem,total), y = total, fill = origem)) +
   
 ```
 
-```{r, influx group_by to create nodes 2 levels}
+```{r, diagonalNetwork}
 
 
-## número de linhas
-source_node_size<-NROW(unique(data_by_group[,1]))
-target_node_size<-NROW(unique(data_by_group[,2]))
-l1<-source_node_size+target_node_size
-
-
-# nome itens nodes
-source_node_itens<-unique(as.character(data_by_group$origem))
-target_node_itens<-unique(as.character(data_by_group$esfera_in))
-
-nodes_by_group <- data.frame(node = c(0: (source_node_size + target_node_size  - 1 )), 
-                    name = c( source_node_itens, target_node_itens)) 
-
-
-data_by_group <- merge(data_by_group, nodes_by_group, by.x = "origem", by.y = "name")
-View(data_by_group)
-data_by_group <- merge(data_by_group, nodes_by_group, by.x = "esfera_in", by.y = "name")
-sum(data_by_group$total)
-
-
-
-data_by_group_links <- data_by_group[ , c("node.x", "node.y", "total")]
-colnames(data_by_group_links) <- c("source", "target", "value")
-
-
-sankeyNetwork(Links = data_by_group_links, 
-              Nodes = nodes_by_group, 
-              Source = "source",
-              Target = "target", 
-              Value = "value", 
-              NodeID = "name",
-              units = "R$", # optional units name for popups
-              fontSize = 6, 
-              nodeWidth = 80)
-
-```
-```{r, outflux group_by to create nodes 2 levels}
-
-data_by_group<- outflux %>%
-  filter(ano=="2018", outflux_reais>10000000000)%>%
-  group_by(fonte, esfera_out)%>%
+df_plot<- outflux %>%
+  filter(ano=="2018", outflux_reais>0)%>%
+  group_by(esfera_out, gnd)%>%
   summarise(total = sum(outflux_reais))
 
-
-
+arrange(df_plot,desc(total))
 
 ## número de linhas
-source_node_size<-NROW(unique(data_by_group[,1]))
-target_node_size<-NROW(unique(data_by_group[,2]))
-l1<-source_node_size+target_node_size
+source_node_size_level_2<-NROW(unique(df_plot[,1]))
+target_node_size_level_2<-NROW(unique(df_plot[,2]))
+
+
+
 
 
 # nome itens nodes
-source_node_itens<-unique(as.character(data_by_group$fonte))
-target_node_itens<-unique(as.character(data_by_group$esfera_out))
+source_node_itens_level_2<-unique(as.character(df_plot$esfera_out))
+target_node_itens_level_2<-unique(as.character(df_plot$gnd))
 
-nodes_by_group <- data.frame(node = c(0: (source_node_size + target_node_size  - 1 )), 
-                    name = c( source_node_itens, target_node_itens)) 
-
-
-data_by_group <- merge(data_by_group, nodes_by_group, by.x = "fonte", by.y = "name")
-View(data_by_group)
-data_by_group <- merge(data_by_group, nodes_by_group, by.x = "esfera_out", by.y = "name")
-sum(data_by_group$total)
+nodes_by_group_2 <- data.frame(node = c(0: (source_node_size_level_2 + target_node_size_level_2  - 1 )), 
+                    name = c( 
+                              source_node_itens_level_2, target_node_itens_level_2)) 
 
 
+df_plot <- merge(df_plot, nodes_by_group_2, by.x = "esfera_out", by.y = "name")
 
-data_by_group_links <- data_by_group[ , c("node.x", "node.y", "total")]
-colnames(data_by_group_links) <- c("source", "target", "value")
+df_plot <- merge(df_plot, nodes_by_group_2, by.x = "gnd", by.y = "name")
 
-
-sankeyNetwork(Links = data_by_group_links, 
-              Nodes = nodes_by_group, 
+sankey_links <- df_plot[ , c("node.x", "node.y", "total")]
+colnames(sankey_links) <- c("source", "target", "value")
+sankeyNetwork(Links = sankey_links , 
+              Nodes = nodes_by_group_2, 
               Source = "source",
               Target = "target", 
               Value = "value", 
@@ -232,6 +310,7 @@ sankeyNetwork(Links = data_by_group_links,
               units = "R$", # optional units name for popups
               fontSize = 6, 
               nodeWidth = 80)
+
 
 ```
 
