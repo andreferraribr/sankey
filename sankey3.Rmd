@@ -1,0 +1,128 @@
+---
+title: "sankey"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+load libraries
+
+```{r, load libraries}
+library(dplyr)
+library(networkD3)
+library(tidyr)
+library(readxl)
+library(ggplot2)
+library(treemap)
+
+library(htmlwidgets)
+library(DT)
+```
+
+## teste
+create two data frames: a) influx for revenue; b) outflux for outlays
+
+guidence found here: [https://community.rstudio.com/t/read-xlsx-from-github/9386]
+thanks to: Christophe Dervieux [https://community.rstudio.com/u/cderv/summary]
+
+
+```{r, create influx data frame}
+
+# create data frame influx with revenue data
+influx <- read_excel("influx.xlsx")
+
+
+```
+
+
+```{r, check influx data frame}
+## change names of the columns to increase readability
+colnames(influx)<- c("cat","cat_cod","origem","origem_cod","especie","especie_cod","fonte","fonte_cod","ind_pri_cod","ind_pri","ano","esfera_in_cod","esfera_in","influx_reais","influx_ipca","influx_pib")
+
+levels(influx$origem) <- gsub(" ", "\n", levels(influx$origem))
+
+```
+
+
+
+
+```{r, create outflux data frame}
+outflux <- read_excel("out.xlsx")
+
+
+
+```
+outflux is the outlay either in reais (current BRL), IPCA (Inflation) or PIB (GDP).
+
+
+datatable [https://rstudio.github.io/DT/]
+
+```{r, check outflux data frame}
+
+## change names of the columns to increase readability
+
+colnames(outflux)<-c("ano","cat_cod","cat","gnd_cod","gnd","elemento_cod","elemento","esfera_out_cod","esfera_out","fonte_cod","fonte","res_primario_cod","res_primario","outflux_reais","outflux_ipca", "outflux_pib")
+
+
+```
+
+
+loop para ler df com item selecionados e depois extrair nomes dos nodes
+```{r}
+# filtra nodes objeto do estudo
+influx_s<- influx%>%
+  filter(ano == "2018", influx_reais>0)%>%
+  group_by(cat,esfera_in, ind_pri)%>%
+  summarise(value = sum(influx_reais/1000000))
+names<- c()
+
+
+# loop para extrair nomes dos nodes a partir da df influx_s
+for(i in 1:ncol(influx_s)-1)
+{
+for(j in 1:NROW(influx_s[,i]))
+{
+names <- c(influx_s[j,i],names) ;
+}
+}
+View(names)
+ncol(influx_s)
+NROW(influx_s[,i])
+# obeter apenas os nomes únicos.
+(name<- unique(as.character(names)))
+
+
+# falta associar cada nome em name a um número de node
+
+# 
+
+# fazer duas mergers: primeiro para source e name e depois para target e name
+
+
+```
+
+```{r}
+nodes_t <- data.frame(node = c(0:7), 
+                    name = c("a","b","c","d","e","f","g","h"))
+
+
+sankey_links_t <- data.frame( source = c(0,1,2,3,3,4,4,5,6),
+                            target = c(2,2,4,4,5,6,7,6,7),
+                            value = c(10,15,15,10,20,10,30,20,10))
+
+
+
+sankeyNetwork(Links = sankey_links_t , 
+              Nodes = nodes_t, 
+              Source = "source",
+              Target = "target", 
+              Value = "value", 
+              NodeID = "name",
+              units = "R$", # optional units name for popups
+              fontSize = 6, 
+              nodeWidth = 80)
+```
+
