@@ -74,9 +74,9 @@ loop para ler df com item selecionados e depois extrair nomes dos nodes
 ```{r}
 # filtra nodes objeto do estudo
 influx_s<- influx%>%
-  filter(ano == "2018", influx_reais>0)%>%
-  group_by(cat,esfera_in, ind_pri)%>%
-  summarise(value = sum(influx_reais/1000000))
+  filter(ano == "2018", influx_reais>10000000000)%>%
+  group_by(cat,esfera_in, ind_pri,origem, fonte)%>%
+  summarise(value = sum(influx_reais/1000000000))
 names<- c()
 
 
@@ -85,30 +85,84 @@ for(i in 1:ncol(influx_s)-1)
 {
 for(j in 1:NROW(influx_s[,i]))
 {
-names <- c(influx_s[j,i],names) ;
+names <- c(names,influx_s[j,i]) ;
 }
 }
-View(names)
-ncol(influx_s)
-NROW(influx_s[,i])
+
+
+
 # obeter apenas os nomes únicos.
 (name<- unique(as.character(names)))
 
+## reverter a ordem de nodes 
 
-# falta associar cada nome em name a um número de node
+# criar nodes
+nodes<- data.frame(cbind(node = c((0:(length(name)-1))), name))
 
-# 
+nodes$node <- as.numeric(as.character(nodes$node))
 
-# fazer duas mergers: primeiro para source e name e depois para target e name
+
+
+
+
+## criar links
+
+links <- influx_s%>%
+  group_by_at(1:2)%>%
+  summarise(value = sum(value))
+colnames(links)<-c("source","target","value")
+##
+links<-as.data.frame(links)
+
+
+## criar links adcionais caso a df influx_s tenha mais de duas variáveis
+loop_link<-c("")
+
+for(i in 1:(ncol(influx_s)-3))
+{
+loop_link <- influx_s%>%
+  group_by_at((1+i):(2+i))%>%
+  summarise(teste = sum(value))
+loop_link<-as.data.frame(loop_link)
+colnames(loop_link)<-c("source","target","value")
+
+# juntar os links
+links<-rbind(links,loop_link)
+}
+
+links <- merge(links, nodes, by.x = "target", by.y = "name")
+links <- merge(links, nodes, by.x = "source", by.y = "name")
+
+links_final <- links[ , c("node.y", "node.x", "value")]
+colnames(links_final) <- c("source", "target", "value")
+sankeyNetwork(Links = links_final , 
+              Nodes = nodes, 
+              Source = "source",
+              Target = "target", 
+              Value = "value", 
+              NodeID = "name",
+              units = "R$", # optional units name for popups
+              fontSize = 4, 
+              nodeWidth = 30)
+
 
 
 ```
+
+
+
+
 
 ```{r}
 nodes_t <- data.frame(node = c(0:7), 
                     name = c("a","b","c","d","e","f","g","h"))
 
 
+
+```
+
+
+```{r}
 sankey_links_t <- data.frame( source = c(0,1,2,3,3,4,4,5,6),
                             target = c(2,2,4,4,5,6,7,6,7),
                             value = c(10,15,15,10,20,10,30,20,10))
