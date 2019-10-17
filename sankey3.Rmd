@@ -130,6 +130,7 @@ colnames(loop_link)<-c("source","target","value")
 links<-rbind(links,loop_link)
 }
 
+# mesclar nodes aos valores
 links <- merge(links, nodes, by.x = "target", by.y = "name")
 links <- merge(links, nodes, by.x = "source", by.y = "name")
 
@@ -178,5 +179,82 @@ sankeyNetwork(Links = sankey_links_t ,
               units = "R$", # optional units name for popups
               fontSize = 6, 
               nodeWidth = 80)
+```
+
+```{r}
+# filtra nodes objeto do estudo
+outflux_s<- outflux%>%
+  filter(ano == "2018", outflux_reais>10000000000)%>%
+  group_by(fonte,esfera_out, gnd,elemento)%>%
+  summarise(value = sum(outflux_reais/1000000000))
+names<- c()
+
+
+# loop para extrair nomes dos nodes a partir da df outflux_s
+for(i in 1:ncol(outflux_s)-1)
+{
+for(j in 1:NROW(outflux_s[,i]))
+{
+names <- c(names,outflux_s[j,i]) ;
+}
+}
+
+
+
+# obeter apenas os nomes únicos.
+(name<- unique(as.character(names)))
+
+## reverter a ordem de nodes 
+
+# criar nodes
+nodes<- data.frame(cbind(node = c((0:(length(name)-1))), name))
+
+nodes$node <- as.numeric(as.character(nodes$node))
+
+
+
+
+
+## criar links
+
+links <- outflux_s%>%
+  group_by_at(1:2)%>%
+  summarise(value = sum(value))
+colnames(links)<-c("source","target","value")
+##
+links<-as.data.frame(links)
+
+
+## criar links adcionais caso a df outflux_s tenha mais de duas variáveis
+loop_link<-c("")
+
+for(i in 1:(ncol(outflux_s)-3))
+{
+loop_link <- outflux_s%>%
+  group_by_at((1+i):(2+i))%>%
+  summarise(teste = sum(value))
+loop_link<-as.data.frame(loop_link)
+colnames(loop_link)<-c("source","target","value")
+
+# juntar os links
+links<-rbind(links,loop_link)
+}
+
+# mesclar nodes aos valores
+links <- merge(links, nodes, by.x = "target", by.y = "name")
+links <- merge(links, nodes, by.x = "source", by.y = "name")
+
+links_final <- links[ , c("node.y", "node.x", "value")]
+colnames(links_final) <- c("source", "target", "value")
+sankeyNetwork(Links = links_final , 
+              Nodes = nodes, 
+              Source = "source",
+              Target = "target", 
+              Value = "value", 
+              NodeID = "name",
+              units = "R$", # optional units name for popups
+              fontSize = 4, 
+              nodeWidth = 30)
+
 ```
 
