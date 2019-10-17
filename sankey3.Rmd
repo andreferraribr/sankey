@@ -92,7 +92,7 @@ names <- c(names,influx_s[j,i]) ;
 
 
 # obeter apenas os nomes únicos.
-(name<- unique(as.character(names)))
+name<- unique(as.character(names))
 
 ## reverter a ordem de nodes 
 
@@ -154,32 +154,6 @@ sankeyNetwork(Links = links_final ,
 
 
 
-```{r}
-nodes_t <- data.frame(node = c(0:7), 
-                    name = c("a","b","c","d","e","f","g","h"))
-
-
-
-```
-
-
-```{r}
-sankey_links_t <- data.frame( source = c(0,1,2,3,3,4,4,5,6),
-                            target = c(2,2,4,4,5,6,7,6,7),
-                            value = c(10,15,15,10,20,10,30,20,10))
-
-
-
-sankeyNetwork(Links = sankey_links_t , 
-              Nodes = nodes_t, 
-              Source = "source",
-              Target = "target", 
-              Value = "value", 
-              NodeID = "name",
-              units = "R$", # optional units name for popups
-              fontSize = 6, 
-              nodeWidth = 80)
-```
 
 ```{r}
 # filtra nodes objeto do estudo
@@ -202,7 +176,7 @@ names <- c(names,outflux_s[j,i]) ;
 
 
 # obeter apenas os nomes únicos.
-(name<- unique(as.character(names)))
+name<- unique(as.character(names))
 
 ## reverter a ordem de nodes 
 
