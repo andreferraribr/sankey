@@ -109,10 +109,9 @@ df_plot<- influx %>%
   filter(ano=="2018", influx_reais>1000000000)%>%
   group_by(fonte)%>%
   summarise(total = sum(influx_reais)/1000000000)
-ggplot(df_plot, aes(x = reorder(fonte,total), y = total, fill = fonte)) +
-  geom_col(position = "dodge", colour = "black") +
-  scale_fill_manual(values = mycolors) +
-  guides(fill = FALSE)+
+ggplot(df_plot, aes(x = reorder(fonte,total), y = total, fill = -total)) +
+  geom_col(position = "dodge") +
+    guides(fill = FALSE)+
   theme(axis.text.y = element_text(angle = 00, hjust = 1, vjust = 1, size = 7))+
   coord_flip()
 ```
