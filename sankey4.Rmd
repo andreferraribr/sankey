@@ -1,0 +1,309 @@
+---
+title: "sankey"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+load libraries
+
+```{r, load libraries}
+library(dplyr)
+library(networkD3)
+library(tidyr)
+library(readxl)
+library(ggplot2)
+library(treemap)
+
+library(htmlwidgets)
+library(DT)
+```
+
+## teste
+create two data frames: a) influx for revenue; b) outflux for outlays
+
+guidence found here: [https://community.rstudio.com/t/read-xlsx-from-github/9386]
+thanks to: Christophe Dervieux [https://community.rstudio.com/u/cderv/summary]
+
+
+```{r, create influx data frame}
+
+# create data frame influx with revenue data
+influx <- read_excel("influx.xlsx")
+
+
+```
+
+
+```{r, check influx data frame}
+## change names of the columns to increase readability
+colnames(influx)<- c("cat","cat_cod","origem","origem_cod","especie","especie_cod","fonte","fonte_cod","ind_pri_cod","ind_pri","ano","esfera_in_cod","esfera_in","influx_reais","influx_ipca","influx_pib")
+
+levels(influx$origem) <- gsub(" ", "\n", levels(influx$origem))
+
+```
+
+
+
+
+```{r, create outflux data frame}
+outflux <- read_excel("out.xlsx")
+
+
+
+```
+outflux is the outlay either in reais (current BRL), IPCA (Inflation) or PIB (GDP).
+
+
+datatable [https://rstudio.github.io/DT/]
+
+```{r, check outflux data frame}
+
+## change names of the columns to increase readability
+
+colnames(outflux)<-c("ano","cat_cod","cat","gnd_cod","gnd","elemento_cod","elemento","esfera_out_cod","esfera_out","fonte_cod","fonte","res_primario_cod","res_primario","outflux_reais","outflux_ipca", "outflux_pib")
+
+
+```
+
+
+loop para ler df com item selecionados e depois extrair nomes dos nodes
+```{r}
+# filtra nodes objeto do estudo
+influx_s<- influx%>%
+  filter(ano == "2018", influx_reais>10000000000, ind_pri_cod == "P")%>%
+  group_by(esfera_in,origem_cod,fonte)%>%
+  summarise(value = sum(influx_reais/1000000000))
+names<- c()
+
+
+# loop para extrair nomes dos nodes a partir da df influx_s
+for(i in 1:ncol(influx_s)-1)
+{
+for(j in 1:NROW(influx_s[,i]))
+{
+names <- c(names,influx_s[j,i]) ;
+}
+}
+
+
+
+# obeter apenas os nomes únicos.
+name<- unique(as.character(names))
+
+## reverter a ordem de nodes 
+
+# criar nodes
+nodes<- data.frame(cbind(node = c((0:(length(name)-1))), name))
+
+nodes$node <- as.numeric(as.character(nodes$node))
+
+
+
+
+
+## criar links
+
+links <- influx_s%>%
+  group_by_at(1:2)%>%
+  summarise(value = sum(value))
+colnames(links)<-c("source","target","value")
+##
+links<-as.data.frame(links)
+
+
+## criar links adcionais caso a df influx_s tenha mais de duas variáveis
+loop_link<-c("")
+
+for(i in 1:(ncol(influx_s)-3))
+{
+loop_link <- influx_s%>%
+  group_by_at((1+i):(2+i))%>%
+  summarise(teste = sum(value))
+loop_link<-as.data.frame(loop_link)
+colnames(loop_link)<-c("source","target","value")
+
+# juntar os links
+links<-rbind(links,loop_link)
+}
+
+# mesclar nodes aos valores
+links <- merge(links, nodes, by.x = "target", by.y = "name")
+links <- merge(links, nodes, by.x = "source", by.y = "name")
+
+links_final <- links[ , c("node.y", "node.x", "value")]
+colnames(links_final) <- c("source", "target", "value")
+sankeyNetwork(Links = links_final , 
+              Nodes = nodes, 
+              Source = "source",
+              Target = "target", 
+              Value = "value", 
+              NodeID = "name",
+              units = "R$", # optional units name for popups
+              fontSize = 6, 
+              nodeWidth = 30)
+
+
+
+```
+
+
+
+
+
+
+```{r}
+# filtra nodes objeto do estudo
+outflux_s<- outflux%>%
+  filter(ano == "2018", outflux_reais>1000000, esfera_out_cod == "F", gnd_cod %in% c(1), elemento_cod != 81 )%>%
+  group_by(fonte,esfera_out, elemento)%>%
+  summarise(value = sum(outflux_reais/1000000000))
+names<- c()
+
+
+# loop para extrair nomes dos nodes a partir da df outflux_s
+for(i in 1:ncol(outflux_s)-1)
+{
+for(j in 1:NROW(outflux_s[,i]))
+{
+names <- c(names,outflux_s[j,i]) ;
+}
+}
+
+
+
+# obeter apenas os nomes únicos.
+name<- unique(as.character(names))
+
+## reverter a ordem de nodes 
+
+# criar nodes
+nodes<- data.frame(cbind(node = c((0:(length(name)-1))), name))
+
+nodes$node <- as.numeric(as.character(nodes$node))
+
+
+
+
+
+## criar links
+
+links <- outflux_s%>%
+  group_by_at(1:2)%>%
+  summarise(value = sum(value))
+colnames(links)<-c("source","target","value")
+##
+links<-as.data.frame(links)
+
+
+## criar links adcionais caso a df outflux_s tenha mais de duas variáveis
+loop_link<-c("")
+
+for(i in 1:(ncol(outflux_s)-3))
+{
+loop_link <- outflux_s%>%
+  group_by_at((1+i):(2+i))%>%
+  summarise(teste = sum(value))
+loop_link<-as.data.frame(loop_link)
+colnames(loop_link)<-c("source","target","value")
+
+# juntar os links
+links<-rbind(links,loop_link)
+}
+
+# mesclar nodes aos valores
+links <- merge(links, nodes, by.x = "target", by.y = "name")
+links <- merge(links, nodes, by.x = "source", by.y = "name")
+
+links_final <- links[ , c("node.y", "node.x", "value")]
+colnames(links_final) <- c("source", "target", "value")
+sankeyNetwork(Links = links_final , 
+              Nodes = nodes, 
+              Source = "source",
+              Target = "target", 
+              Value = "value", 
+              NodeID = "name",
+              units = "R$ bi", # optional units name for popups
+              fontSize = 8, 
+              nodeWidth = 20)
+
+```
+```{r}
+# filtra nodes objeto do estudo
+outflux_s<- outflux%>%
+  filter(ano == "2018", outflux_reais>100000000, esfera_out_cod == "S", gnd_cod %in% c(3), elemento_cod != 81 )%>%
+  group_by(fonte,esfera_out, elemento)%>%
+  summarise(value = sum(outflux_reais/1000000000))
+names<- c()
+
+
+# loop para extrair nomes dos nodes a partir da df outflux_s
+for(i in 1:ncol(outflux_s)-1)
+{
+for(j in 1:NROW(outflux_s[,i]))
+{
+names <- c(names,outflux_s[j,i]) ;
+}
+}
+
+
+
+# obeter apenas os nomes únicos.
+name<- unique(as.character(names))
+
+## reverter a ordem de nodes 
+
+# criar nodes
+nodes<- data.frame(cbind(node = c((0:(length(name)-1))), name))
+
+nodes$node <- as.numeric(as.character(nodes$node))
+
+
+
+
+
+## criar links
+
+links <- outflux_s%>%
+  group_by_at(1:2)%>%
+  summarise(value = sum(value))
+colnames(links)<-c("source","target","value")
+##
+links<-as.data.frame(links)
+
+
+## criar links adcionais caso a df outflux_s tenha mais de duas variáveis
+loop_link<-c("")
+
+for(i in 1:(ncol(outflux_s)-3))
+{
+loop_link <- outflux_s%>%
+  group_by_at((1+i):(2+i))%>%
+  summarise(teste = sum(value))
+loop_link<-as.data.frame(loop_link)
+colnames(loop_link)<-c("source","target","value")
+
+# juntar os links
+links<-rbind(links,loop_link)
+}
+
+# mesclar nodes aos valores
+links <- merge(links, nodes, by.x = "target", by.y = "name")
+links <- merge(links, nodes, by.x = "source", by.y = "name")
+
+links_final <- links[ , c("node.y", "node.x", "value")]
+colnames(links_final) <- c("source", "target", "value")
+sankeyNetwork(Links = links_final , 
+              Nodes = nodes, 
+              Source = "source",
+              Target = "target", 
+              Value = "value", 
+              NodeID = "name",
+              units = "R$ bi", # optional units name for popups
+              fontSize = 8, 
+              nodeWidth = 20)
+```
+
