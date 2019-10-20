@@ -46,7 +46,7 @@ influx <- read_excel("influx.xlsx")
 colnames(influx)<- c("cat","cat_cod","origem","origem_cod","especie","especie_cod","fonte","fonte_cod","ind_pri_cod","ind_pri","ano","esfera_in_cod","esfera_in","influx_reais","influx_ipca","influx_pib")
 
 levels(influx$origem) <- gsub(" ", "\n", levels(influx$origem))
-datatable(influx)
+
 
 ```
 
@@ -69,7 +69,7 @@ datatable [https://rstudio.github.io/DT/]
 
 colnames(outflux)<-c("ano","cat_cod","cat","gnd_cod","gnd","elemento_cod","elemento","esfera_out_cod","esfera_out","fonte_cod","fonte","res_primario_cod","res_primario","outflux_reais","outflux_ipca", "outflux_pib")
 
-datatable(outflux)
+
 
 ```
 
@@ -121,7 +121,7 @@ df_plot<- influx %>%
   filter(ano=="2018", influx_reais>1000000000)%>%
   group_by(especie)%>%
   summarise(total = sum(influx_reais)/1000000000)
-ggplot(df_plot, aes(x = reorder(especie,total), y = total, fill = especie)) +
+ggplot(df_plot, aes(x = reorder(especie,total), y = total, fill = -total)) +
   geom_col(position = "dodge",colour = "black") +
   guides(fill = FALSE)+
   theme(axis.text.y = element_text(angle = 00, hjust = 1, vjust = 1, size = 7))+
@@ -138,6 +138,7 @@ influx_s<- influx%>%
   summarise(value = sum(influx_reais/1000000000))
 names<- c()
 
+datatable(influx_s)
 
 # loop para extrair nomes dos nodes a partir da df influx_s
 for(i in 1:ncol(influx_s)-1)
@@ -176,7 +177,7 @@ links<-as.data.frame(links)
 
 ## criar links adcionais caso a df influx_s tenha mais de duas variáveis
 loop_link<-c("")
-
+links_final<-("")
 for(i in 1:(ncol(influx_s)-3))
 {
 loop_link <- influx_s%>%
@@ -192,6 +193,10 @@ links<-rbind(links,loop_link)
 # mesclar nodes aos valores
 links <- merge(links, nodes, by.x = "target", by.y = "name")
 links <- merge(links, nodes, by.x = "source", by.y = "name")
+
+## remover duplicados 
+links <- distinct(links, target,source, .keep_all= TRUE)
+
 
 links_final <- links[ , c("node.y", "node.x", "value")]
 colnames(links_final) <- c("source", "target", "value")
