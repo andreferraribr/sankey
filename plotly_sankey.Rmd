@@ -170,7 +170,7 @@ p <- plot_ly(
 
     node = list(
       label = nodes$name,
-      color = c("blue", "blue", "blue", "blue", "blue", "blue","pink"),
+      color = c("blue", "blue", "blue", "red", "blue", "blue","pink"),
       pad = 15,
       thickness = 20,
       line = list(
@@ -192,11 +192,15 @@ p <- plot_ly(
     )
 )
 
+
+
+
+
 # Create a shareable link to your chart
 # Set up API credentials: https://plot.ly/r/especie
-chart_link = api_create(p, filename="sankey-teste1")
-chart_link
-
+#chart_link = api_create(p, filename="sankey-teste1")
+#chart_link
+p
 
 ```
 
@@ -210,7 +214,23 @@ chart_link
 outflux_s<- outflux%>%
   filter(ano == "2018", outflux_reais>1000000, esfera_out_cod == "F", gnd_cod %in% c(1), elemento_cod != 81 )%>%
   group_by(fonte,esfera_out, elemento)%>%
-  summarise(value = sum(outflux_reais/1000000000))
+  summarise(value = sum(outflux_reais/1000000000))%>%
+  arrange(desc(value ))
+
+
+
+
+# arredondar valor para melhorar visualização da tabela
+
+outflux_s$value<-round(outflux_s$value, 0) 
+
+
+
+
+
+
+
+
 names<- c()
 
 
@@ -310,21 +330,11 @@ p <- plot_ly(
 
 # Create a shareable link to your chart
 # Set up API credentials: https://plot.ly/r/outflux
-chart_link = api_create(p, filename="sankey-teste2")
-chart_link
+#chart_link = api_create(p, filename="sankey-teste2")
+#chart_link
+p
+datatable(outflux_s)
 
-
-
-
-sankeyNetwork(Links = links_final , 
-              Nodes = nodes, 
-              Source = "source",
-              Target = "target", 
-              Value = "value", 
-              NodeID = "name",
-              units = "R$ bi", # optional units name for popups
-              fontSize = 10, 
-              nodeWidth = 20)
 
 ```
 
