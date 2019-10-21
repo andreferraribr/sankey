@@ -24,6 +24,8 @@ library(htmlwidgets)
 library(DT)
 library("viridis")
 library(RColorBrewer)
+library(plotly)
+packageVersion('plotly')
 ```
 
 ## teste
@@ -75,56 +77,6 @@ colnames(outflux)<-c("ano","cat_cod","cat","gnd_cod","gnd","elemento_cod","eleme
 
 
 
-
-```{r, categoria}
-df_plot<- influx %>%
-  filter(ano=="2018", influx_reais>0)%>%
-  group_by(cat )%>%
-  summarise(total = sum(influx_reais)/1000000000)
-ggplot(df_plot, aes(x = reorder(cat, total), y = total, fill = cat)) +
-  geom_col(position = "dodge", colour = "black") +
-  scale_fill_brewer(palette = "Pastel1")+
-  guides(fill = FALSE)+
-  theme(axis.text.y = element_text(angle = 00, hjust = 1, vjust = 1, size = 7))+
-  coord_flip()
-```
-```{r}
-df_plot<- influx %>%
-  filter(ano=="2018", influx_reais>0)%>%
-  group_by(esfera_in)%>%
-  summarise(total = sum(influx_reais)/1000000000)
-ggplot(df_plot, aes(x = reorder(esfera_in,total), y = total, fill = esfera_in)) +
-  geom_col(position = "dodge", colour = "black") +
-  scale_fill_brewer(palette = "Pastel1")+
-  guides(fill = FALSE)+
-  theme(axis.text.y = element_text(angle = 00, hjust = 1, vjust = 1, size = 7))+
-  coord_flip()
-```
-```{r}
-
-
-df_plot<- influx %>%
-  filter(ano=="2018", influx_reais>1000000000)%>%
-  group_by(fonte)%>%
-  summarise(total = sum(influx_reais)/1000000000)
-ggplot(df_plot, aes(x = reorder(fonte,total), y = total, fill = -total)) +
-  geom_col(position = "dodge") +
-    guides(fill = FALSE)+
-  theme(axis.text.y = element_text(angle = 00, hjust = 1, vjust = 1, size = 7))+
-  coord_flip()
-```
-
-```{r}
-df_plot<- influx %>%
-  filter(ano=="2018", influx_reais>1000000000)%>%
-  group_by(especie)%>%
-  summarise(total = sum(influx_reais)/1000000000)
-ggplot(df_plot, aes(x = reorder(especie,total), y = total, fill = -total)) +
-  geom_col(position = "dodge") +
-  guides(fill = FALSE)+
-  theme(axis.text.y = element_text(angle = 00, hjust = 1, vjust = 1, size = 7))+
-  coord_flip()
-```
 
 
 loop para ler df com item selecionados e depois extrair nomes dos nodes
@@ -209,24 +161,42 @@ links <- merge(links, nodes, by.x = "source", by.y = "name")
 ## remover duplicados 
 links <- distinct(links, target,source, .keep_all= TRUE)
 
-nodes$group <- nodes$name
-my_color <- 'd3.scaleOrdinal() .domain(name) .range(["green", "blue","green", "green", "gray"])'
-
 links_final <- links[ , c("node.y", "node.x", "value")]
 colnames(links_final) <- c("source", "target", "value")
-sankeyNetwork(Links = links_final , 
-              Nodes = nodes, 
-              Source = "source",
-              Target = "target", 
-              Value = "value", 
-              NodeID = "name",
-              units = "R$ bi", # optional units name for popups
-              fontSize = 10, 
-              nodeWidth = 20,
-              colourScale=my_color,
-              NodeGroup="group")
 
-print(name)
+p <- plot_ly(
+    type = "sankey",
+    orientation = "h",
+
+    node = list(
+      label = nodes$name,
+      color = c("blue", "blue", "blue", "blue", "blue", "blue","pink"),
+      pad = 15,
+      thickness = 20,
+      line = list(
+        color = "black",
+        width = 0.5
+      )
+    ),
+
+    link = list(
+      source = links_final$source,
+      target = links_final$target,
+      value =  links_final$value
+    )
+  ) %>% 
+  layout(
+    title = "Basic Sankey Diagram",
+    font = list(
+      size = 10
+    )
+)
+
+# Create a shareable link to your chart
+# Set up API credentials: https://plot.ly/r/especie
+chart_link = api_create(p, filename="sankey-teste1")
+chart_link
+
 
 ```
 
@@ -303,6 +273,49 @@ links <- merge(links, nodes, by.x = "source", by.y = "name")
 
 links_final <- links[ , c("node.y", "node.x", "value")]
 colnames(links_final) <- c("source", "target", "value")
+
+
+
+
+
+
+
+p <- plot_ly(
+    type = "sankey",
+    orientation = "h",
+
+    node = list(
+      label = nodes$name,
+      color = c("blue", "blue", "blue", "blue", "blue", "blue","pink"),
+      pad = 15,
+      thickness = 20,
+      line = list(
+        color = "black",
+        width = 0.5
+      )
+    ),
+
+    link = list(
+      source = links_final$source,
+      target = links_final$target,
+      value =  links_final$value
+    )
+  ) %>% 
+  layout(
+    title = "Basic Sankey Diagram",
+    font = list(
+      size = 10
+    )
+)
+
+# Create a shareable link to your chart
+# Set up API credentials: https://plot.ly/r/outflux
+chart_link = api_create(p, filename="sankey-teste2")
+chart_link
+
+
+
+
 sankeyNetwork(Links = links_final , 
               Nodes = nodes, 
               Source = "source",
@@ -314,6 +327,10 @@ sankeyNetwork(Links = links_final ,
               nodeWidth = 20)
 
 ```
+
+
+
+
 ```{r}
 # filtra nodes objeto do estudo
 outflux_s<- outflux%>%
@@ -474,4 +491,5 @@ sankeyNetwork(Links = links_final ,
               NodeGroup="group")
 
 ```
+
 
