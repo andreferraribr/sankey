@@ -65,7 +65,7 @@ datatable [https://rstudio.github.io/DT/]
 colnames(outflux)<-c("ano","cat_cod","cat","gnd_cod","gnd","elemento_cod","elemento","esfera_out_cod","esfera_out","fonte_cod","fonte","res_primario_cod","res_primario","outflux_reais","outflux_ipca", "outflux_pib")
 ```
 
-
+[https://rstudio.github.io/DT/functions.html]
 
 [https://www.w3.org/TR/css-color-3/#svg-color]
 
@@ -74,7 +74,7 @@ colnames(outflux)<-c("ano","cat_cod","cat","gnd_cod","gnd","elemento_cod","eleme
 influx_s<- influx%>%
   # filtra pelo ano de 2018 e valore maiores que R$ 1 bilhão
   filter(ano == "2018",influx_reais>1000000000 )%>%
-  group_by( origem, esfera_in)%>%
+  group_by( origem, esfera_in, fonte)%>%
   summarise(value = sum(influx_reais/1000000000))%>%
   arrange(desc(value ))
 
@@ -180,7 +180,19 @@ p <- plot_ly(
 #chart_link
 # exibir gráfico e tabela
 p
-datatable(influx_s)
+datatable(influx_s,filter = 'top', options = list(
+  pageLength = 5, autoWidth = TRUE
+),
+
+  caption = "Governo Federal, arrecadacao em R$ Bi")%>% 
+  formatStyle(
+    'value',
+    background = styleColorBar(influx_s$value, 'steelblue'),
+    backgroundSize = '100% 90%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+  )
+
 ```
 ```{r, influx origem x esfera x fonte}
 influx_s<- influx%>%
