@@ -35,17 +35,35 @@ create two data frames: a) influx for revenue; b) outflux for outlays
 ```{r, create influx data frame}
 
 # ler o arquivo de receita (ingresso de caixa)
-influx <- read_excel("influx.xlsx")
+influx <- read_excel("C:/Users/03092181794/Desktop/R/sankey/influx5.xlsx")
+
 ```
 
 
 ```{r, check influx data frame}
 
 ## renomear as colunas para facilitar leitura
-colnames(influx)<- c("cat","cat_cod","origem","origem_cod","especie","especie_cod","fonte","fonte_cod","ind_pri_cod","ind_pri","ano","esfera_in_cod","esfera_in","influx_reais","influx_ipca","influx_pib")
+colnames(influx)<- c("cat","cat_cod","origem","origem_cod","origem_name_cod","especie","especie_name_cod","especie_cod","fonte","fonte_cod", "fonte_name_cod","ind_pri_cod","ind_pri","ano","esfera_in_cod", "esfera_in_name_code","esfera_in","influx_reais","influx_ipca","influx_pib")
+
+influx<- influx%>%
+  filter(influx_reais > 0)
+
+
+```
+
+```{r}
+
+# ler o arquivo de NATUREZA da receita (maior granularidade)
+nat_rec <- read_excel("nat_rec.xlsx")
+
 ```
 
 
+
+
+```{r}
+colnames(nat_rec)<- c("cat","cat_cod","origem","origem_cod","origem_name_cod","especie","especie_name_cod","especie_cod", "nat_name_cod", "nat_cod", "nat","fonte","fonte_cod", "fonte_name_cod","ind_pri_cod","ind_pri","ano","esfera_in_cod", "esfera_in_name_code","esfera_in","influx_reais","influx_ipca","influx_pib")
+```
 
 
 ```{r, create outflux data frame}
@@ -72,9 +90,9 @@ colnames(outflux)<-c("ano","cat_cod","cat","gnd_cod","gnd","elemento_cod","eleme
 ```{r, influx origem x esfera}
 # utilizar group_by para incluir as variáveis origem e esfera no gráfico sankey
 influx_s<- influx%>%
-  # filtra pelo ano de 2018 e valore maiores que R$ 1 bilhão
-  filter(ano == "2018",influx_reais>1000000000 )%>%
-  group_by( origem, esfera_in, fonte)%>%
+  # filtra pelo ano de 2018 e valore maiores que R$ 10 bilhão
+  filter(ano == 2018,influx_reais>1 )%>%
+  group_by( origem_name_cod, esfera_in, fonte)%>%
   summarise(value = sum(influx_reais/1000000000))%>%
   arrange(desc(value ))
 
@@ -148,7 +166,7 @@ p <- plot_ly(
     node = list(
       label = nodes$name,
       # quantidade de cores == lenght nodes
-      color = c(rep("gray",11), "midnightblue","red"),
+      color = c(rep("gray",9), "midnightblue","red",rep("gray",30)),
       pad = 15,
       thickness = 20,
       line = list(
@@ -162,13 +180,13 @@ p <- plot_ly(
       target = links_final$target,
       value =  links_final$value,
       # quantidade de cores == lenght links
-      color = c(rep("lightgray",2), "red", rep("lightgray",12))
+      color = c(rep("lightgray",1), "red", rep("lightgray",19),"midnightblue",rep("lightgray",9))
     )
   ) %>% 
   layout(
     title = "Governo Federal 2018: origem x esfera (R$ Bi)",
     font = list(
-      size = 12
+      size = 9
     )
 )
 
@@ -179,7 +197,7 @@ p <- plot_ly(
 #chart_link = api_create(p, filename="sankey-teste1")
 #chart_link
 # exibir gráfico e tabela
-p
+
 datatable(influx_s,filter = 'top', options = list(
   pageLength = 5, autoWidth = TRUE
 ),
@@ -192,8 +210,302 @@ datatable(influx_s,filter = 'top', options = list(
     backgroundRepeat = 'no-repeat',
     backgroundPosition = 'center'
   )
+p
+```
+
+
+
+```{r}
+# utilizar group_by para incluir as variáveis origem e esfera no gráfico sankey
+nat_rec_s<- nat_rec%>%
+  # filtra pelo ano de 2018 e valore maiores que R$ 10 bilhão
+ ## filter(ano == "2006",nat_cod == "12101301" | nat_cod == "12103801", influx_reais>1 )%>%
+  filter(ano == "2006",nat_cod == "12101301" , influx_reais>1 )%>%
+  group_by( origem, especie, nat, esfera_in, fonte)%>%
+  summarise(value = sum(influx_reais/1000000000))%>%
+  arrange(desc(value ))
+
+# arredondar valor para melhorar visualização da tabela
+nat_rec_s$value<-round(nat_rec_s$value, 0) 
+names<- vector()
+nodes<- vector()
+
+# loop para extrair nomes dos nodes a partir da df influx_s
+for(i in 1:ncol(nat_rec_s)-1)
+{
+for(j in 1:NROW(nat_rec_s[,i]))
+{
+names <- c(names,nat_rec_s[j,i]) ;
+}
+}
+
+# obeter apenas os nomes únicos.
+name<- unique(as.character(names))
+
+## reverter a ordem de nodes 
+
+# criar nodes
+nodes<- data.frame(cbind(node = c((0:(length(name)-1))), name))
+
+nodes$node <- as.numeric(as.character(nodes$node))
+
+## criar links
+
+links <- nat_rec_s%>%
+  group_by_at(1:2)%>%
+  summarise(value = sum(value))
+colnames(links)<-c("source","target","value")
+##
+links<-as.data.frame(links)
+
+## criar links adcionais caso a df influx_s tenha mais de duas variáveis
+
+for(i in 1:(ncol(nat_rec_s)-3))
+{
+loop_link <- nat_rec_s%>%
+  group_by_at((1+i):(2+i))%>%
+  summarise(teste = sum(value))
+loop_link<-as.data.frame(loop_link)
+colnames(loop_link)<-c("source","target","value")
+
+# juntar os links
+links<-rbind(links,loop_link)
+}
+
+# mesclar nodes aos valores
+links <- merge(links, nodes, by.x = "target", by.y = "name")
+links <- merge(links, nodes, by.x = "source", by.y = "name")
+
+## remover duplicados 
+links <- distinct(links, target,source, .keep_all= TRUE)
+
+links_final <- links[ , c("node.y", "node.x", "value")]
+colnames(links_final) <- c("source", "target", "value")
+```
+
+
+
+```{r}
+p <- plot_ly(
+    type = "sankey",
+    orientation = "h",
+
+    node = list(
+      label = nodes$name,
+      # quantidade de cores == lenght nodes
+      color = c("lightgray"),
+      pad = 15,
+      thickness = 20,
+      line = list(
+        color = "black",
+        width = 0.5
+      )
+    ),
+
+    link = list(
+      source = links_final$source,
+      target = links_final$target,
+      value =  links_final$value,
+      # quantidade de cores == lenght links
+      color = c("lightgray")
+    )
+  ) %>% 
+  layout(
+    title = "Governo Federal 2018: origem x esfera (R$ Bi)",
+    font = list(
+      size = 7
+    )
+)
+
+
+
+# Create a shareable link to your chart
+# Set up API credentials: https://plot.ly/r/especie
+#chart_link = api_create(p, filename="sankey-teste1")
+#chart_link
+# exibir gráfico e tabela
+
+datatable(nat_rec_s,filter = 'top', options = list(
+  pageLength = 5, autoWidth = TRUE
+),
+
+  caption = "Governo Federal, arrecadacao em R$ Bi")%>% 
+  formatStyle(
+    'value',
+    background = styleColorBar(nat_rec_s$value, 'steelblue'),
+    backgroundSize = '100% 90%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+  )
+p
+```
+
+
+
+
+```{r}
+# utilizar group_by para incluir as variáveis origem e esfera no gráfico sankey
+nat_rec_s<- nat_rec%>%
+  # filtra pelo ano de 2018 e valore maiores que R$ 10 bilhão
+ ## filter(ano == "2018",fonte_cod == "100", influx_reais>1 )%>%
+  filter(ano == "2018",ind_pri_cod =="F", influx_reais>1 )%>%
+  group_by( especie, nat, fonte)%>%
+  summarise(value = sum(influx_reais/1000000000))%>%
+  arrange(desc(value ))
+
+# arredondar valor para melhorar visualização da tabela
+nat_rec_s$value<-round(nat_rec_s$value, 0) 
+names<- vector()
+nodes<- vector()
+
+# loop para extrair nomes dos nodes a partir da df influx_s
+for(i in 1:ncol(nat_rec_s)-1)
+{
+for(j in 1:NROW(nat_rec_s[,i]))
+{
+names <- c(names,nat_rec_s[j,i]) ;
+}
+}
+
+# obeter apenas os nomes únicos.
+name<- unique(as.character(names))
+
+## reverter a ordem de nodes 
+
+# criar nodes
+nodes<- data.frame(cbind(node = c((0:(length(name)-1))), name))
+
+nodes$node <- as.numeric(as.character(nodes$node))
+
+## criar links
+
+links <- nat_rec_s%>%
+  group_by_at(1:2)%>%
+  summarise(value = sum(value))
+colnames(links)<-c("source","target","value")
+##
+links<-as.data.frame(links)
+
+## criar links adcionais caso a df influx_s tenha mais de duas variáveis
+
+for(i in 1:(ncol(nat_rec_s)-3))
+{
+loop_link <- nat_rec_s%>%
+  group_by_at((1+i):(2+i))%>%
+  summarise(teste = sum(value))
+loop_link<-as.data.frame(loop_link)
+colnames(loop_link)<-c("source","target","value")
+
+# juntar os links
+links<-rbind(links,loop_link)
+}
+
+# mesclar nodes aos valores
+links <- merge(links, nodes, by.x = "target", by.y = "name")
+links <- merge(links, nodes, by.x = "source", by.y = "name")
+
+## remover duplicados 
+links <- distinct(links, target,source, .keep_all= TRUE)
+
+links_final <- links[ , c("node.y", "node.x", "value")]
+colnames(links_final) <- c("source", "target", "value")
+```
+
+
+
+```{r}
+p <- plot_ly(
+    type = "sankey",
+    orientation = "h",
+
+    node = list(
+      label = nodes$name,
+      # quantidade de cores == lenght nodes
+      color = c("lightgray"),
+      pad = 15,
+      thickness = 20,
+      line = list(
+        color = "black",
+        width = 0.5
+      )
+    ),
+
+    link = list(
+      source = links_final$source,
+      target = links_final$target,
+      value =  links_final$value,
+      # quantidade de cores == lenght links
+      color = c("lightgray")
+    )
+  ) %>% 
+  layout(
+    title = "Governo Federal 2018: origem x esfera (R$ Bi)",
+    font = list(
+      size = 7
+    )
+)
+
+
+
+# Create a shareable link to your chart
+# Set up API credentials: https://plot.ly/r/especie
+#chart_link = api_create(p, filename="sankey-teste1")
+#chart_link
+# exibir gráfico e tabela
+
+datatable(nat_rec_s,filter = 'top', options = list(
+  pageLength = 5, autoWidth = TRUE
+),
+
+  caption = "Governo Federal, arrecadacao em R$ Bi")%>% 
+  formatStyle(
+    'value',
+    background = styleColorBar(nat_rec_s$value, 'steelblue'),
+    backgroundSize = '100% 90%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+  )
+p
+```
+
+```{r}
+dru<-  influx%>%
+  filter(origem_cod == "12", esfera_in_cod == "F" )
+
+ord<-outflux%>%
+  filter(fonte_cod != "100", esfera_out_cod == "S" )
+
+
+dru_ano<-dru%>%
+  group_by( ano)%>%
+  summarise(value = sum(influx_reais/1000000000))
+
+ord_ano<-ord%>%
+  group_by( ano)%>%
+  summarise(value = sum(outflux_reais/1000000000))
+#comparar DRU x recursos do orçamento fiscal destinados à seguridade social
+dru_ord<- merge(ord_ano, dru_ano, by.x = "ano", by.y = "ano")
+
+
+# identificar fontes da seguridade social
+fontes_seg<-influx%>%
+  filter(ano == "2018", esfera_in_cod == "S", influx_reais>1 )%>%
+  group_by(fonte)%>%
+  summarise(value = sum(influx_reais/1000000000))
+print(fontes_seg$fonte)
+
+
+
+fontes_seg_out<-outflux%>%
+  filter(ano == "2018",esfera_out_cod == "S", outflux_reais>1 )%>%
+  group_by(fonte)%>%
+  summarise(value = sum(outflux_reais/1000000000))
+print(fontes_seg_out$fonte)
+
 
 ```
+
+
 ```{r, influx origem x esfera x fonte}
 influx_s<- influx%>%
   # filtra pelo ano de 2018 e valore maiores que R$ 1 bilhão
@@ -310,7 +622,7 @@ datatable(influx_s)
 ```{r}
 # filtra nodes objeto do estudo
 outflux_s<- outflux%>%
-  filter(ano == "2018", outflux_reais>1000000, esfera_out_cod == "F", gnd_cod %in% c(1), elemento_cod != 81 )%>%
+  filter(ano == "2018", outflux_reais>1000000, fonte_cod == "100" )%>%
   group_by(fonte,esfera_out, elemento)%>%
   summarise(value = sum(outflux_reais/1000000000))%>%
   arrange(desc(value ))
@@ -439,165 +751,5 @@ datatable(outflux_s)
 
 
 
-```{r}
-# filtra nodes objeto do estudo
-outflux_s<- outflux%>%
-  filter(ano == 2018, outflux_reais>1, str_detect(elemento, "PENS|APOSEN" ))%>%
-  group_by(fonte, esfera_out, elemento)%>%
-  summarise(value = sum(outflux_reais/1000000000))
-
-
-names<- c()
-
-
-# loop para extrair nomes dos nodes a partir da df outflux_s
-for(i in 1:ncol(outflux_s)-1)
-{
-for(j in 1:NROW(outflux_s[,i]))
-{
-names <- c(names,outflux_s[j,i]) ;
-}
-}
-
-
-
-# obeter apenas os nomes únicos.
-name<- unique(as.character(names))
-
-## reverter a ordem de nodes 
-
-# criar nodes
-nodes<- data.frame(cbind(node = c((0:(length(name)-1))), name))
-
-nodes$node <- as.numeric(as.character(nodes$node))
-
-
-
-
-
-## criar links
-
-links <- outflux_s%>%
-  group_by_at(1:2)%>%
-  summarise(value = sum(value))
-colnames(links)<-c("source","target","value")
-##
-links<-as.data.frame(links)
-
-
-## criar links adcionais caso a df outflux_s tenha mais de duas variáveis
-loop_link<-c("")
-
-for(i in 1:(ncol(outflux_s)-3))
-{
-loop_link <- outflux_s%>%
-  group_by_at((1+i):(2+i))%>%
-  summarise(teste = sum(value))
-loop_link<-as.data.frame(loop_link)
-colnames(loop_link)<-c("source","target","value")
-
-# juntar os links
-links<-rbind(links,loop_link)
-}
-
-# mesclar nodes aos valores
-links <- merge(links, nodes, by.x = "target", by.y = "name")
-links <- merge(links, nodes, by.x = "source", by.y = "name")
-
-links_final <- links[ , c("node.y", "node.x", "value")]
-colnames(links_final) <- c("source", "target", "value")
-sankeyNetwork(Links = links_final , 
-              Nodes = nodes, 
-              Source = "source",
-              Target = "target", 
-              Value = "value", 
-              NodeID = "name",
-              units = "R$ bi", # optional units name for popups
-              fontSize = 10, 
-              nodeWidth = 20)
-```
-
-```{r}
-# filtra nodes objeto do estudo
-outflux_s<- outflux%>%
-  filter(ano == 2018, outflux_reais>1, gnd_cod == c(2,6))%>%
-  group_by(fonte, esfera_out, elemento)%>%
-  summarise(value = sum(outflux_reais/1000000000))
-
-
-names<- c()
-
-
-# loop para extrair nomes dos nodes a partir da df outflux_s
-for(i in 1:ncol(outflux_s)-1)
-{
-for(j in 1:NROW(outflux_s[,i]))
-{
-names <- c(names,outflux_s[j,i]) ;
-}
-}
-
-
-
-# obeter apenas os nomes únicos.
-name<- unique(as.character(names))
-
-## reverter a ordem de nodes 
-
-# criar nodes
-nodes<- data.frame(cbind(node = c((0:(length(name)-1))), name))
-
-nodes$node <- as.numeric(as.character(nodes$node))
-
-
-
-
-
-## criar links
-
-links <- outflux_s%>%
-  group_by_at(1:2)%>%
-  summarise(value = sum(value))
-colnames(links)<-c("source","target","value")
-##
-links<-as.data.frame(links)
-
-
-## criar links adcionais caso a df outflux_s tenha mais de duas variáveis
-loop_link<-c("")
-
-for(i in 1:(ncol(outflux_s)-3))
-{
-loop_link <- outflux_s%>%
-  group_by_at((1+i):(2+i))%>%
-  summarise(teste = sum(value))
-loop_link<-as.data.frame(loop_link)
-colnames(loop_link)<-c("source","target","value")
-
-# juntar os links
-links<-rbind(links,loop_link)
-}
-
-# mesclar nodes aos valores
-links <- merge(links, nodes, by.x = "target", by.y = "name")
-links <- merge(links, nodes, by.x = "source", by.y = "name")
-nodes$group <- nodes$name
-my_color <- 'd3.scaleOrdinal() .domain(name) .range(["red","red","red", "red","red","red","red","red","pink","blue","pink","black","pink","red", "red","red","red","red","red","red","red"])'
-
-links_final <- links[ , c("node.y", "node.x", "value")]
-colnames(links_final) <- c("source", "target", "value")
-sankeyNetwork(Links = links_final , 
-              Nodes = nodes, 
-              Source = "source",
-              Target = "target", 
-              Value = "value", 
-              NodeID = "name",
-              units = "R$ bi", # optional units name for popups
-              fontSize = 10, 
-              nodeWidth = 20,
-              colourScale=my_color,
-              NodeGroup="group")
-
-```
 
 
