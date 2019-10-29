@@ -623,8 +623,8 @@ datatable(influx_s,filter = 'top', options = list(
 ```{r}
 # filtra nodes objeto do estudo
 outflux_s<- outflux%>%
-  filter(ano == "2018", outflux_reais>1000000, fonte_cod == "100" )%>%
-  group_by(fonte,esfera_out, elemento)%>%
+  filter(ano == "2018", outflux_reais>1000000, fonte == "CONTRIBUICAO P/FINANCIAM.DA SEGURIDADE SOCIAL" )%>%
+  group_by(fonte, elemento)%>%
   summarise(value = sum(outflux_reais/1000000000))%>%
   arrange(desc(value ))
 
@@ -637,10 +637,7 @@ outflux_s$value<-as.numeric(myround(outflux_s$value, 1))
 
 
 
-
-
-
-
+nodes<- vector()
 names<- c()
 
 
@@ -713,7 +710,7 @@ colnames(links_final) <- c("source", "target", "value")
 p <- plot_ly(
     type = "sankey",
     orientation = "h",
-    width = 800, height = 600,
+    width = 900, height = 1000,
     node = list(
       label = nodes$name,
       color = c("blue", "blue", "blue", "blue", "blue", "blue","pink"),
@@ -853,7 +850,7 @@ colnames(links_final) <- c("source", "target", "value")
 p <- plot_ly(
     type = "sankey",
     orientation = "h",
-    width = 800, height = 600,
+    width = 900, height = 700,
     node = list(
       label = nodes$name,
       color = c("blue", "blue", "blue", "blue", "blue", "blue","pink"),
