@@ -311,8 +311,8 @@ p <- plot_ly(
 
 # Create a shareable link to your chart
 # Set up API credentials: https://plot.ly/r/cide
- chart_link = api_create(p, filename="cide")
- chart_link
+ #chart_link = api_create(p, filename="cide")
+ #chart_link
 # exibir gráfico e tabela
 
 datatable(nat_rec_s,filter = 'top', options = list(
@@ -469,71 +469,6 @@ datatable(outflux_s,filter = 'top', options = list(
 ```
 
 
-```{r}
-
-# Governo Federal 2018: arrecadação por origem (R$ bi)
-origem_plot<- nat_rec %>%
-  filter(ano=="2018", influx_reais>0)%>%
-  group_by(origem)%>%
-  summarise(total = sum(influx_reais)/1000000000)
-
-origem_plot$total<-as.numeric(myround(origem_plot$total, 1))
-
-p<- ggplot(origem_plot, aes(x = reorder(origem,total), y = total, fill = total)) +
-  geom_col(position = "dodge") +
-    guides(fill = FALSE)+
-  theme(axis.text.y = element_text(angle = 00, hjust = 1, vjust = 1, size = 7))+
-  coord_flip()+ 
-  labs(title = "Governo Federal 2018: arrecadação por origem (R$ bi)", x = "", y = "")
-
-p <- ggplotly(p)
-
-# Create a shareable link to your chart
-# Set up API credentials: https://plot.ly/r/getting-started
-#chart_link = api_create(p, filename="arrecadação por origem")
-#chart_link
-p
-
-
-datatable(origem_plot,filter = 'top', options = list(
-  pageLength = 5, autoWidth = TRUE
-),
-
-  caption = "Governo Federal 2018: arrecadação por origem (R$ bi)
-valores zerados representam arrecadação inferior a R$ 1 bilhão")%>% 
-  formatStyle(
-    'total',
-    background = styleColorBar(origem_plot$total, 'steelblue'),
-    backgroundSize = '100% 90%',
-    backgroundRepeat = 'no-repeat',
-    backgroundPosition = 'center'
-  )
-```
-
-```{r}
-# Governo Federal 2018: pagamentos por elemento da despesa (R$ bi)
-elemento_plot<- outflux %>%
-  filter(ano=="2018", outflux_reais>0)%>%
-  group_by(elemento)%>%
-  summarise(total = sum(outflux_reais)/1000000000)
-
-elemento_plot$total<-as.numeric(myround(elemento_plot$total, 1))
-
-p<- ggplot(elemento_plot, aes(x = reorder(elemento,total), y = total, fill = total)) +
-  geom_col(position = "dodge") +
-    guides(fill = FALSE)+
-  theme(axis.text.y = element_text(angle = 00, hjust = 1, vjust = 1, size = 5))+
-  coord_flip()+ 
-  labs(title = "Governo Federal 2018: pagamentos por elemento da despesa (R$ bi)", x = "", y = "")
-
-p <- ggplotly(p)
-
-# Create a shareable link to your chart
-# Set up API credentials: https://plot.ly/r/getting-started
-#chart_link = api_create(p, filename="pagamentos por elemento da despesa")
-#chart_link
-p
-```
 [https://bookdown.org/lyzhang10/lzhang_r_tips_book/how-to-plot-data.html]
 ```{r}
 fonte_in<-  nat_rec%>%
@@ -589,25 +524,114 @@ print(p)
 
 ```
 
-
+[https://aledemogr.com/2017/05/29/plots-based-on-un-data-in-r/]
 
 ```{r}
+#Recursos de contribuições sociais carimbados como fonte 100 (recursos ordinários)
 dru<-  nat_rec%>%
-  filter(origem_name_cod == ("12-CONTRIBUIÇÕES"), esfera_in_cod == "F" )
+  filter(especie_cod == "121", fonte_cod == "100" )
 
+# recursos ordinários utilizados para despesas com o orçamento da seguridade social
 ord<-outflux%>%
-  filter(fonte_cod != "100", esfera_out_cod == "S" )
+  filter(fonte_cod == "100", esfera_out_cod == "S" )
 
 
 dru_ano<-dru%>%
   group_by( ano)%>%
-  summarise(value = sum(influx_reais/1000000000))
+  summarise(value = sum(influx_reais/-1000000000))
+
+dru_ano<- dru_ano%>%
+  mutate (tipo = "saida_via_DRU")
 
 ord_ano<-ord%>%
   group_by( ano)%>%
   summarise(value = sum(outflux_reais/1000000000))
 #comparar DRU x recursos do orçamento fiscal destinados à seguridade social
+
+
+ord_ano<- ord_ano%>%
+  mutate (tipo = "retorno_via_fonte_100")
+
+plot_in_out<- rbind(dru_ano,ord_ano)%>%
+  arrange(desc(ano ))
+
+
+
+
+the_order <-dru_ano$ano
+
+
+
+p <- 
+  plot_in_out %>% 
+  ggplot(aes(x = ano, y = value, group = , fill = tipo)) +
+  geom_bar(stat = "identity", width = 0.75) +
+  scale_x_discrete(limits = (the_order)) +
+  # another trick!
+  
+  labs(x = "Fonte", y = "Valor", title = "Back-to-back bar chart") +
+  theme(legend.position = "bottom",
+        legend.title = element_blank(),
+        plot.title = element_text(hjust = 0.5),
+        panel.background = element_rect(fill =  "grey90")) +
+  # reverse the order of items in legend
+  # guides(fill = guide_legend(reverse = TRUE)) +
+  # change the default colors of bars
+  scale_fill_manual(values=c("red", "blue"),
+                    name="",
+                    breaks=c("arrecadado", "pago"),
+                    labels=c("arrecadado", "pago")) 
+
+print(p)
+
+
+
+
+
+ggplot(data = dru_ord, aes(x = ano, y = resultado))+
+  geom_point()
+
+
+
+
+
 dru_ord<- merge(ord_ano, dru_ano, by.x = "ano", by.y = "ano")
+
+dru_ord<- dru_ord %>%
+  select("ano", "value.x","value.y")
+  
+
+
+
+  
+  
+dru_ord<- dru_ord %>%  
+  mutate (resultado = value.x + value.y  )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # identificar fontes da seguridade social
