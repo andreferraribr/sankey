@@ -494,6 +494,7 @@ plot_in_out<- rbind(fonte_in,fonte_out)%>%
 
 fonte_in_out<-merge(fonte_in,fonte_out, by.x = "fonte", by.y = "fonte")
 
+
 the_order <-fonte_out$fonte
 
 fonte_in_out<-fonte_in_out%>%
@@ -562,23 +563,39 @@ dru_ord<- dru_ord %>%
 fluxo<- rbind(ord_ano, dru_ano)
 
 fluxo<- fluxo%>%
-  mutate(tipo = ifelse(value<0, "DRU", "fonte_100"))%>%
+  mutate(tipo = ifelse(value>0, "DRU", "fonte_100"))%>%
   arrange((tipo))
 
 
-ggplot(dru_ord, aes(x = ano, y = value)) +
+p <- plot_ly(dru_ord)%>%
+  ggplot( aes(x = ano, y = value)) +
   geom_bar(data = fluxo, aes(fill = tipo), stat = "identity") +
   geom_point()+
   geom_line(group=1)+
   theme_bw()
 
 
+p
 
+chart_link = api_create(p, filename="dru x fontes 100")
+chart_link
 
 
 
 
 ```
+
+
+
+
+
+
+
+
+
+
+
+
 ```{r}
 #Recursos de contribuições sociais carimbados como fonte 100 (recursos ordinários)
 dru_1<-  nat_rec%>%
@@ -590,7 +607,7 @@ ord_1<-outflux%>%
 
 
 dru_ano_1<-dru_1%>%
-  group_by( ano)%>%
+  group_by( ano,fonte)%>%
   summarise(value = sum(influx_reais/1000000000))
 
 #dru_ano<-dru_ano%>%
@@ -598,16 +615,20 @@ dru_ano_1<-dru_1%>%
 
 
 ord_ano_1<-ord_1%>%
-  group_by( ano)%>%
+  group_by( ano,fonte)%>%
   summarise(value = sum(outflux_reais/-1000000000))
 #comparar DRU x recursos do orçamento fiscal destinados à seguridade social
 
 #ord_ano<-ord_ano%>%
  # mutate(tipo = "fontes_fiscais")
+ord_ano_2<-ord_1%>%
+  group_by( ano)%>%
+  summarise(value = sum(outflux_reais/-1000000000))
 
+ord_ano_2<- ord_ano_2%>%
+  arrange(value)
 
-
-dru_ord_1<- merge(ord_ano_1, dru_ano_1, by.x = "ano", by.y = "ano")
+dru_ord_1<- merge(ord_ano_2, dru_ano_1, by.x = "ano", by.y = "ano")
 
 dru_ord_1<- dru_ord_1 %>%
   mutate(value=value.x+value.y)
@@ -615,17 +636,22 @@ dru_ord_1<- dru_ord_1 %>%
 fluxo_1<- rbind(ord_ano_1, dru_ano_1)
 
 fluxo_1<- fluxo_1%>%
-  mutate(tipo = ifelse(value>0, "DRU", "fonte_fiscais"))%>%
-  arrange((tipo))
+  mutate(tipo = ifelse(value>0, "DRU", fonte))%>%
+  arrange(desc(tipo))
 
 
-ggplot(dru_ord_1, aes(x = ano, y = value)) +
+
+
+p <- plot_ly(dru_ord_1)%>%
+ggplot( aes(x = ano, y = value)) +
   geom_bar(data = fluxo_1, aes(fill = tipo), stat = "identity") +
   geom_point()+
   geom_line(group=1)+
   theme_bw()
+p
 
-
+chart_link = api_create(p, filename="dru x fontes fiscais")
+chart_link
 
 ## fontes fiscais por cor fill.
 
@@ -761,8 +787,11 @@ datatable(influx_s,filter = 'top', options = list(
 
 
 ```{r}
+
+# pensão e aposentadorias
+
 outflux_s<- outflux%>%
-  filter(ano == 2018, outflux_reais>1, str_detect(elemento, "PENS|APOSEN" ))%>%
+  filter( outflux_reais>1, str_detect(elemento, "PENS|APOSEN" ))%>%
   group_by(fonte,esfera_out, elemento)%>%
   summarise(value = sum(outflux_reais/1000000000))%>%
   arrange(desc(value ))
@@ -872,7 +901,7 @@ p <- plot_ly(
     )
   ) %>% 
   layout(
-    title = "Basic Sankey Diagram",
+    title = "pensão aposentadoria",
     font = list(
       size = 10
     )
@@ -880,13 +909,146 @@ p <- plot_ly(
 
 # Create a shareable link to your chart
 # Set up API credentials: https://plot.ly/r/outflux
-#chart_link = api_create(p, filename="sankey-teste2")
-#chart_link
+chart_link = api_create(p, filename="pensão aposentadoria")
+chart_link
 p
 datatable(outflux_s)
 
 
 ```
+
+
+
+
+
+
+```{r}
+outflux_s<- outflux%>%
+  filter( outflux_reais>1, ano == "2018" )%>%
+  group_by(esfera_out, res_primario, fonte, elemento)%>%
+  summarise(value = sum(outflux_reais/1000000000))%>%
+  arrange(desc(value ))
+
+
+
+
+# arredondar valor para melhorar visualização da tabela
+
+outflux_s$value<-as.numeric(myround(outflux_s$value, 1))
+
+
+
+
+
+
+
+
+names<- c()
+
+
+# loop para extrair nomes dos nodes a partir da df outflux_s
+for(i in 1:ncol(outflux_s)-1)
+{
+for(j in 1:NROW(outflux_s[,i]))
+{
+names <- c(names,outflux_s[j,i]) ;
+}
+}
+
+
+
+# obeter apenas os nomes únicos.
+name<- unique(as.character(names))
+
+## reverter a ordem de nodes 
+
+# criar nodes
+nodes<- data.frame(cbind(node = c((0:(length(name)-1))), name))
+
+nodes$node <- as.numeric(as.character(nodes$node))
+
+
+
+
+
+## criar links
+
+links <- outflux_s%>%
+  group_by_at(1:2)%>%
+  summarise(value = sum(value))
+colnames(links)<-c("source","target","value")
+##
+links<-as.data.frame(links)
+
+
+## criar links adcionais caso a df outflux_s tenha mais de duas variáveis
+loop_link<-c("")
+
+for(i in 1:(ncol(outflux_s)-3))
+{
+loop_link <- outflux_s%>%
+  group_by_at((1+i):(2+i))%>%
+  summarise(teste = sum(value))
+loop_link<-as.data.frame(loop_link)
+colnames(loop_link)<-c("source","target","value")
+
+# juntar os links
+links<-rbind(links,loop_link)
+}
+
+# mesclar nodes aos valores
+links <- merge(links, nodes, by.x = "target", by.y = "name")
+links <- merge(links, nodes, by.x = "source", by.y = "name")
+
+
+
+
+links_final <- links[ , c("node.y", "node.x", "value")]
+colnames(links_final) <- c("source", "target", "value")
+
+
+
+
+
+
+
+p <- plot_ly(
+    type = "sankey",
+    orientation = "h",
+    width = 900, height = 700,
+    node = list(
+      label = nodes$name,
+      color = c("blue", "blue", "blue", "blue", "blue", "blue","pink"),
+      pad = 15,
+      thickness = 20,
+      line = list(
+        color = "black",
+        width = 0.5
+      )
+    ),
+
+    link = list(
+      source = links_final$source,
+      target = links_final$target,
+      value =  links_final$value
+    )
+  ) %>% 
+  layout(
+    title = "despesa 2018",
+    font = list(
+      size = 10
+    )
+)
+
+# Create a shareable link to your chart
+# Set up API credentials: https://plot.ly/r/outflux
+chart_link = api_create(p, filename="despesa 2018")
+chart_link
+p
+datatable(outflux_s)
+
+```
+
 
 
 
