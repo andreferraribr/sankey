@@ -538,84 +538,39 @@ ord<-outflux%>%
 
 dru_ano<-dru%>%
   group_by( ano)%>%
-  summarise(value = sum(influx_reais/-1000000000))
+  summarise(value = sum(influx_reais/1000000000))
 
-dru_ano<- dru_ano%>%
-  mutate (tipo = "saida_via_DRU")
+#dru_ano<-dru_ano%>%
+ # mutate(tipo = "dru")
+
 
 ord_ano<-ord%>%
   group_by( ano)%>%
-  summarise(value = sum(outflux_reais/1000000000))
+  summarise(value = sum(outflux_reais/-1000000000))
 #comparar DRU x recursos do orçamento fiscal destinados à seguridade social
 
-
-ord_ano<- ord_ano%>%
-  mutate (tipo = "retorno_via_fonte_100")
-
-plot_in_out<- rbind(dru_ano,ord_ano)%>%
-  arrange(desc(ano ))
-
-
-
-
-the_order <-dru_ano$ano
-
-
-
-p <- 
-  plot_in_out %>% 
-  ggplot(aes(x = ano, y = value, group = , fill = tipo)) +
-  geom_bar(stat = "identity", width = 0.75) +
-  scale_x_discrete(limits = (the_order)) +
-  # another trick!
-  
-  labs(x = "Fonte", y = "Valor", title = "Back-to-back bar chart") +
-  theme(legend.position = "bottom",
-        legend.title = element_blank(),
-        plot.title = element_text(hjust = 0.5),
-        panel.background = element_rect(fill =  "grey90")) +
-  # reverse the order of items in legend
-  # guides(fill = guide_legend(reverse = TRUE)) +
-  # change the default colors of bars
-  scale_fill_manual(values=c("red", "blue"),
-                    name="",
-                    breaks=c("arrecadado", "pago"),
-                    labels=c("arrecadado", "pago")) 
-
-print(p)
-
-
-
-
-
-ggplot(data = dru_ord, aes(x = ano, y = resultado))+
-  geom_point()
-
-
+#ord_ano<-ord_ano%>%
+ # mutate(tipo = "fonte_100")
 
 
 
 dru_ord<- merge(ord_ano, dru_ano, by.x = "ano", by.y = "ano")
 
 dru_ord<- dru_ord %>%
-  select("ano", "value.x","value.y")
-  
+  mutate(value=value.x+value.y)
+
+fluxo<- rbind(ord_ano, dru_ano)
+
+fluxo<- fluxo%>%
+  mutate(tipo = ifelse(value<0, "DRU", "fonte_100"))%>%
+  arrange((tipo))
 
 
-
-  
-  
-dru_ord<- dru_ord %>%  
-  mutate (resultado = value.x + value.y  )
-
-
-
-
-
-
-
-
-
+ggplot(dru_ord, aes(x = ano, y = value)) +
+  geom_bar(data = fluxo, aes(fill = tipo), stat = "identity") +
+  geom_point()+
+  geom_line(group=1)+
+  theme_bw()
 
 
 
@@ -623,31 +578,57 @@ dru_ord<- dru_ord %>%
 
 
 
+```
+```{r}
+#Recursos de contribuições sociais carimbados como fonte 100 (recursos ordinários)
+dru_1<-  nat_rec%>%
+  filter(especie_cod == "121", fonte_cod == "100" )
+
+# recursos ordinários utilizados, remuneração conta única, concessões e títulos para despesas com o orçamento da seguridade social
+ord_1<-outflux%>%
+  filter(fonte_cod %in% c("100","188","144","329"), esfera_out_cod == "S" )
 
 
-
-
-
-
-
-
-
-
-
-# identificar fontes da seguridade social
-fontes_seg<-nat_rec%>%
-  filter(ano == "2018", esfera_in_cod == "S", influx_reais>1 )%>%
-  group_by(fonte)%>%
+dru_ano_1<-dru_1%>%
+  group_by( ano)%>%
   summarise(value = sum(influx_reais/1000000000))
-print(fontes_seg$fonte)
+
+#dru_ano<-dru_ano%>%
+ # mutate(tipo = "dru")
+
+
+ord_ano_1<-ord_1%>%
+  group_by( ano)%>%
+  summarise(value = sum(outflux_reais/-1000000000))
+#comparar DRU x recursos do orçamento fiscal destinados à seguridade social
+
+#ord_ano<-ord_ano%>%
+ # mutate(tipo = "fontes_fiscais")
 
 
 
-fontes_seg_out<-outflux%>%
-  filter(ano == "2018",esfera_out_cod == "S", outflux_reais>1 )%>%
-  group_by(fonte)%>%
-  summarise(value = sum(outflux_reais/1000000000))
-print(fontes_seg_out$fonte)
+dru_ord_1<- merge(ord_ano_1, dru_ano_1, by.x = "ano", by.y = "ano")
+
+dru_ord_1<- dru_ord_1 %>%
+  mutate(value=value.x+value.y)
+
+fluxo_1<- rbind(ord_ano_1, dru_ano_1)
+
+fluxo_1<- fluxo_1%>%
+  mutate(tipo = ifelse(value>0, "DRU", "fonte_fiscais"))%>%
+  arrange((tipo))
+
+
+ggplot(dru_ord_1, aes(x = ano, y = value)) +
+  geom_bar(data = fluxo_1, aes(fill = tipo), stat = "identity") +
+  geom_point()+
+  geom_line(group=1)+
+  theme_bw()
+
+
+
+## fontes fiscais por cor fill.
+
 
 
 ```
@@ -782,7 +763,7 @@ datatable(influx_s,filter = 'top', options = list(
 ```{r}
 outflux_s<- outflux%>%
   filter(ano == 2018, outflux_reais>1, str_detect(elemento, "PENS|APOSEN" ))%>%
-  group_by(fonte, esfera_out, elemento)%>%
+  group_by(fonte,esfera_out, elemento)%>%
   summarise(value = sum(outflux_reais/1000000000))%>%
   arrange(desc(value ))
 
