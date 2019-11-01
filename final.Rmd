@@ -10,6 +10,8 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+options(scipen=999)
+options(digits = 2)
 ```
 
 
@@ -40,7 +42,7 @@ Utilizei dados abertos do Siga Brasil [http://www9.senado.gov.br/painelespeciali
 1) "nat_rec", com detalhes sobre os valores arrecadados.   
 2) "outflux", com detalhes sobre os pagamentos totais.   
 
-
+[https://pt.stackoverflow.com/questions/216852/adicionar-nota%C3%A7%C3%A3o-de-moeda-em-r]
 ```{r}
 
 # preparar a tabela com dados sobre valores arrecadados (entrada de caixa)
@@ -52,7 +54,7 @@ colnames(nat_rec)<- c("cat","cat_cod","origem","origem_cod","origem_name_cod","e
 # eliminar arrecadação com valor nulo
 nat_rec <- nat_rec%>%
   filter(influx_reais > 0)
-
+format_real(nat_rec$influx_reais)
 
 # preparar a tabela com dados sobre pagamentos (saída de caixa)
 outflux <- read_excel("out.xlsx")
@@ -60,7 +62,7 @@ outflux <- read_excel("out.xlsx")
 ## renomear as colunas para facilitar leitura
 
 colnames(outflux)<-c("ano","cat_cod","cat","gnd_cod","gnd","elemento_cod","elemento","esfera_out_cod","esfera_out","fonte_cod","fonte","res_primario_cod","res_primario","outflux_reais","outflux_ipca", "outflux_pib")
-
+format_real(outflux$outflux_reais)
 
 # eliminar pagamentos com valor nulo
 outflux <- outflux%>%
@@ -79,22 +81,21 @@ datatable [https://rstudio.github.io/DT/]
 
 
 
-```{r, influx origem x esfera}
-# utilizar group_by para incluir as variáveis origem e esfera no gráfico sankey
+```{r, Desvinculação de Recursos da União (R$ Bi)}
+
 # Governo Federal 2018: Desvinculação de Recursos da União (R$ Bi)
-
-
-
 
 influx_s<- nat_rec%>%
   # filtra pelo ano de 2018 e valore maiores que R$ 0
   filter(ano == 2018,influx_reais>0 )%>%
-  group_by( especie_name_cod, fonte_name_cod, esfera_in)%>%
-  summarise(total = sum(influx_reais/1000000000))%>%
+# utilizar group_by para incluir as variáveis specie_name_cod, fonte_name_cod, esfera_in no gráfico sankey
+    group_by( especie_name_cod, fonte_name_cod, esfera_in)%>%
+ # transformar em bilhões de reais
+   summarise(total = sum(influx_reais/1000000000))%>%
   arrange(desc(total ))
-  # cria variávies para identificar espécies e fontes menores que determinado valor (R$ 10 bi) e reclassificá-las como "demais"
+  # cria variávies para identificar espécies e fontes menores que determinado valor (R$ 20 bi) e reclassificá-las como "demais"
 influx_s<- influx_s%>%
-  mutate(fonte_demais = ifelse(total > 20, fonte_name_cod, "demais fontes") )%>%
+    mutate(fonte_demais = ifelse(total > 20, fonte_name_cod, "demais fontes") )%>%
   mutate(especie_demais = ifelse(total > 20, especie_name_cod, "demais espécies") )%>%
   group_by( especie_demais, fonte_demais, esfera_in)%>%
   summarise(value = sum(total))
@@ -116,15 +117,12 @@ names <- c(names,influx_s[j,i]) ;
 # obeter apenas os nomes únicos.
 name<- unique(as.character(names))
 
-
-
 # criar nodes
 nodes<- data.frame(cbind(node = c((0:(length(name)-1))), name))
 
 nodes$node <- as.numeric(as.character(nodes$node))
 
 ## criar links
-
 links <- influx_s%>%
   group_by_at(1:2)%>%
   summarise(value = sum(value))
@@ -133,7 +131,6 @@ colnames(links)<-c("source","target","value")
 links<-as.data.frame(links)
 
 ## criar links adcionais caso a df influx_s tenha mais de duas variáveis
-
 for(i in 1:(ncol(influx_s)-3))
 {
 loop_link <- influx_s%>%
@@ -141,7 +138,6 @@ loop_link <- influx_s%>%
   summarise(teste = sum(value))
 loop_link<-as.data.frame(loop_link)
 colnames(loop_link)<-c("source","target","value")
-
 # juntar os links
 links<-rbind(links,loop_link)
 }
@@ -153,6 +149,7 @@ links <- merge(links, nodes, by.x = "source", by.y = "name")
 ## remover duplicados 
 links <- distinct(links, target,source, .keep_all= TRUE)
 
+# preparar os dados finais para o sankey
 links_final <- links[ , c("node.y", "node.x", "value")]
 colnames(links_final) <- c("source", "target", "value")
 
@@ -163,7 +160,7 @@ p <- plot_ly(
     node = list(
       label = nodes$name,
       # quantidade de cores == lenght nodes
-      color = c("lightgray","red", rep("lightgray",6), "green", rep("lightgray",13),"blue", "red"),
+      color = c("lightgray","blue", rep("lightgray",6), "red", rep("lightgray",13),"red", "blue"),
       pad = 15,
       thickness = 20,
       line = list(
@@ -177,7 +174,7 @@ p <- plot_ly(
       target = links_final$target,
       value =  links_final$value,
       # quantidade de cores == lenght links
-      color = c("green" ,rep("lightgray",4),"red", rep("lightgray",24))
+      color = c("red" ,rep("lightgray",4),"blue", rep("lightgray",24))
     )
   ) %>% 
   layout( title = "Governo Federal 2018: Desvinculação de Recursos da União (R$ Bi)",
@@ -192,6 +189,7 @@ p <- plot_ly(
 #chart_link
 # exibir gráfico e tabela
 
+# criar datatable
 datatable(influx_s,filter = 'top', options = list(
   pageLength = 5, autoWidth = TRUE
 ),
@@ -209,7 +207,7 @@ p
 
 
 
-```{r}
+```{r, arrecadação CIDE (repetição do chunk anterior agora filtrado por natureza da receita "12200821" - CIDE) }
 # utilizar group_by para incluir as variáveis origem e esfera no gráfico sankey
 nat_rec_s<- nat_rec%>%
   # filtra pelo ano de 2018 e CIDE COMBUSTÍVEIS COMERCIALIZAÇÃO PRINCIPAL (Natureza da Receita 12200821)
@@ -283,7 +281,7 @@ p <- plot_ly(
     node = list(
       label = nodes$name,
       # quantidade de cores == lenght nodes
-      color = c("lightgray", "blue",rep("lightgray",2)),
+      color = c("lightgray", "red",rep("lightgray",2)),
       pad = 15,
       thickness = 20,
       line = list(
@@ -297,7 +295,7 @@ p <- plot_ly(
       target = links_final$target,
       value =  links_final$value,
       # quantidade de cores == lenght links
-      color = c("lightgray", "green", "lightgray")
+      color = c("lightgray", "red", "lightgray")
     )
   ) %>% 
   layout(
@@ -331,7 +329,7 @@ p
 ```
 
 
-```{r}
+```{r, destinação da CIDE (semelhante ao chunk anterior, mas com dados dos pagamentos/outflux)}
 # filtra nodes objeto do estudo
 # Governo Federal 2018: Pagamentos realizados com a fonte CIDE (R$ Bi)
 outflux_s<- outflux%>%
@@ -348,7 +346,6 @@ outflux_s<- outflux%>%
 outflux_s$value<-as.numeric(myround(outflux_s$value, 1))
 
 
-
 nodes<- vector()
 names<- c()
 
@@ -361,7 +358,6 @@ for(j in 1:NROW(outflux_s[,i]))
 names <- c(names,outflux_s[j,i]) ;
 }
 }
-
 
 
 # obeter apenas os nomes únicos.
@@ -470,64 +466,11 @@ datatable(outflux_s,filter = 'top', options = list(
 
 
 [https://bookdown.org/lyzhang10/lzhang_r_tips_book/how-to-plot-data.html]
-```{r}
-fonte_in<-  nat_rec%>%
-  filter(ano == 2018, influx_reais>0)%>%
-  group_by(fonte  )%>%
-  summarise(total = sum(influx_reais)/1000000000)
 
-fonte_in<-fonte_in%>%
-  mutate(tipo = "arrecadado")
-
-fonte_out<-  outflux%>%
-  filter(ano == 2018, outflux_reais>0)%>%
-  group_by(fonte  )%>%
-  summarise(total = sum(outflux_reais)/-1000000000)
-
-fonte_out<-fonte_out%>%
-  mutate(tipo = "pago")
-
-plot_in_out<- rbind(fonte_in,fonte_out)%>%
-  arrange(desc(fonte ))
-
-
-
-fonte_in_out<-merge(fonte_in,fonte_out, by.x = "fonte", by.y = "fonte")
-
-
-the_order <-fonte_out$fonte
-
-fonte_in_out<-fonte_in_out%>%
-  mutate(saldo = total.x - total.y)
-
-p <- 
-  plot_in_out %>% 
-  ggplot(aes(x = fonte, y = total, group = , fill = tipo)) +
-  geom_bar(stat = "identity", width = 0.75) +
-  coord_flip() +
-  scale_x_discrete(limits = rev(the_order)) +
-  # another trick!
-  
-  labs(x = "Fonte", y = "Valor", title = "Back-to-back bar chart") +
-  theme(legend.position = "bottom",
-        legend.title = element_blank(),
-        plot.title = element_text(hjust = 0.5),
-        panel.background = element_rect(fill =  "grey90")) +
-  # reverse the order of items in legend
-  # guides(fill = guide_legend(reverse = TRUE)) +
-  # change the default colors of bars
-  scale_fill_manual(values=c("red", "blue"),
-                    name="",
-                    breaks=c("arrecadado", "pago"),
-                    labels=c("arrecadado", "pago")) 
-
-print(p)
-
-```
 
 [https://aledemogr.com/2017/05/29/plots-based-on-un-data-in-r/]
 
-```{r}
+```{r, saldo DRU x Fonte 100}
 #Recursos de contribuições sociais carimbados como fonte 100 (recursos ordinários)
 dru<-  nat_rec%>%
   filter(especie_cod == "121", fonte_cod == "100" )
@@ -563,22 +506,39 @@ dru_ord<- dru_ord %>%
 fluxo<- rbind(ord_ano, dru_ano)
 
 fluxo<- fluxo%>%
-  mutate(tipo = ifelse(value>0, "DRU", "fonte_100"))%>%
+  mutate(tipo = ifelse(value>0, "DRU", "Recursos Ordinários"))%>%
   arrange((tipo))
 
+
+cols<- c("DRU" = "blue",  "Recursos Ordinários" = "#ff0000")
 
 p <- plot_ly(dru_ord)%>%
   ggplot( aes(x = ano, y = value)) +
   geom_bar(data = fluxo, aes(fill = tipo), stat = "identity") +
   geom_point()+
   geom_line(group=1)+
-  theme_bw()
+  theme_bw()+
+  ggtitle("DRU x recursos ordinários destinados à seguridade social", "Governo Federal 2005 a 2018 (R$ bi nominais)")+
+  xlab("")+
+  ylab("")+
+  theme(
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank()
+  )+
+     scale_colour_manual(
+    values = cols,
+    aesthetics = c("colour", "fill")
+  )+
+  geom_text(aes(label=value), size= 3 ,vjust=-0.25)
 
 
 p
 
-chart_link = api_create(p, filename="dru x fontes 100")
-chart_link
+
+
+
+#chart_link = api_create(p, filename="dru x fontes 100")
+#chart_link
 
 
 
@@ -592,18 +552,21 @@ chart_link
 
 
 
+scale_manual: Create your own discrete scale
+In ggplot2: Create Elegant Data Visualisations Using the Grammar of Graphics
 
+[https://rdrr.io/cran/ggplot2/man/scale_manual.html]
 
+[https://www.w3schools.com/colors/colors_picker.asp?colorhex=FF0000]
 
-
-```{r}
+```{r, saldo DRU x fontes fiscais}
 #Recursos de contribuições sociais carimbados como fonte 100 (recursos ordinários)
 dru_1<-  nat_rec%>%
   filter(especie_cod == "121", fonte_cod == "100" )
 
-# recursos ordinários utilizados, remuneração conta única, concessões e títulos para despesas com o orçamento da seguridade social
+# recursos ordinários utilizados, remuneração conta única e títulos para despesas com o orçamento da seguridade social
 ord_1<-outflux%>%
-  filter(fonte_cod %in% c("100","188","144","329"), esfera_out_cod == "S" )
+  filter(fonte_cod %in% c("100","188","144"), esfera_out_cod == "S" )
 
 
 dru_ano_1<-dru_1%>%
@@ -637,9 +600,9 @@ fluxo_1<- rbind(ord_ano_1, dru_ano_1)
 
 fluxo_1<- fluxo_1%>%
   mutate(tipo = ifelse(value>0, "DRU", fonte))%>%
-  arrange(desc(tipo))
+  arrange((tipo))
 
-
+cols<- c("DRU" = "blue",  "REMUNERACAO DAS DISPONIB. DO TESOURO NACIONAL" = "#4d4d4d", "TITULOS DE RESPONSABILID.DO TESOURO NACIONAL" = "#b3b3b3", "RECURSOS ORDINARIOS" = "#ff0000")
 
 
 p <- plot_ly(dru_ord_1)%>%
@@ -647,17 +610,35 @@ ggplot( aes(x = ano, y = value)) +
   geom_bar(data = fluxo_1, aes(fill = tipo), stat = "identity") +
   geom_point()+
   geom_line(group=1)+
-  theme_bw()
+  theme_bw()+
+  ggtitle("DRU x recursos destinados à seguridade social", "Governo Federal 2005 a 2018 (R$ bi nominais)")+
+  xlab("")+
+  ylab("")+
+  theme(
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank()
+  )+
+  scale_colour_manual(
+    values = cols,
+  breaks = c("DRU", "RECURSOS ORDINARIOS", "REMUNERACAO DAS DISPONIB. DO TESOURO NACIONAL", "TITULOS DE RESPONSABILID.DO TESOURO NACIONAL"),
+  labels = c("DRU", "Recursos Ordinários", "Remuneração das Disponibilidades", "Títulos do Tesouro"),
+    aesthetics = c("colour", "fill")
+  )
+
+
 p
 
-chart_link = api_create(p, filename="dru x fontes fiscais")
-chart_link
+
+print(fluxo_1)
+#chart_link = api_create(p, filename="dru x fontes fiscais")
+#chart_link
 
 ## fontes fiscais por cor fill.
 
 
 
 ```
+
 
 
 ```{r, influx origem x esfera x fonte}
@@ -669,7 +650,7 @@ influx_s<- nat_rec%>%
   arrange(desc(value ))
 
 # arredondar valor para melhorar visualização da tabela
-influx_s$value<-as.numeric(myround(influx_s$value, 1))
+influx_s$value<-round(influx_s$value, 1)
 names<- vector()
 nodes<- vector()
 
@@ -801,7 +782,7 @@ outflux_s<- outflux%>%
 
 # arredondar valor para melhorar visualização da tabela
 
-outflux_s$value<-as.numeric(myround(outflux_s$value, 1))
+outflux_s$value<-round(outflux_s$value, 1)
 
 
 
@@ -909,8 +890,8 @@ p <- plot_ly(
 
 # Create a shareable link to your chart
 # Set up API credentials: https://plot.ly/r/outflux
-chart_link = api_create(p, filename="pensão aposentadoria")
-chart_link
+#chart_link = api_create(p, filename="pensão aposentadoria")
+#chart_link
 p
 datatable(outflux_s)
 
@@ -934,7 +915,7 @@ outflux_s<- outflux%>%
 
 # arredondar valor para melhorar visualização da tabela
 
-outflux_s$value<-as.numeric(myround(outflux_s$value, 1))
+outflux_s$value<-round(outflux_s$value, 1)
 
 
 
@@ -1042,8 +1023,8 @@ p <- plot_ly(
 
 # Create a shareable link to your chart
 # Set up API credentials: https://plot.ly/r/outflux
-chart_link = api_create(p, filename="despesa 2018")
-chart_link
+#chart_link = api_create(p, filename="despesa 2018")
+#chart_link
 p
 datatable(outflux_s)
 
