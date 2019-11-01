@@ -54,7 +54,7 @@ colnames(nat_rec)<- c("cat","cat_cod","origem","origem_cod","origem_name_cod","e
 # eliminar arrecadação com valor nulo
 nat_rec <- nat_rec%>%
   filter(influx_reais > 0)
-format_real(nat_rec$influx_reais)
+
 
 # preparar a tabela com dados sobre pagamentos (saída de caixa)
 outflux <- read_excel("out.xlsx")
@@ -62,7 +62,7 @@ outflux <- read_excel("out.xlsx")
 ## renomear as colunas para facilitar leitura
 
 colnames(outflux)<-c("ano","cat_cod","cat","gnd_cod","gnd","elemento_cod","elemento","esfera_out_cod","esfera_out","fonte_cod","fonte","res_primario_cod","res_primario","outflux_reais","outflux_ipca", "outflux_pib")
-format_real(outflux$outflux_reais)
+
 
 # eliminar pagamentos com valor nulo
 outflux <- outflux%>%
@@ -470,6 +470,8 @@ datatable(outflux_s,filter = 'top', options = list(
 
 [https://aledemogr.com/2017/05/29/plots-based-on-un-data-in-r/]
 
+[https://plot.ly/r/graphing-multiple-chart-types/]
+
 ```{r, saldo DRU x Fonte 100}
 #Recursos de contribuições sociais carimbados como fonte 100 (recursos ordinários)
 dru<-  nat_rec%>%
@@ -510,13 +512,14 @@ fluxo<- fluxo%>%
   arrange((tipo))
 
 
+
 cols<- c("DRU" = "blue",  "Recursos Ordinários" = "#ff0000")
 
 p <- plot_ly(dru_ord)%>%
   ggplot( aes(x = ano, y = value)) +
   geom_bar(data = fluxo, aes(fill = tipo), stat = "identity") +
-  geom_point()+
-  geom_line(group=1)+
+  geom_point(color = "white", size =0.5)+
+  geom_line(group=1, color = "gray")+
   theme_bw()+
   ggtitle("DRU x recursos ordinários destinados à seguridade social", "Governo Federal 2005 a 2018 (R$ bi nominais)")+
   xlab("")+
@@ -529,7 +532,7 @@ p <- plot_ly(dru_ord)%>%
     values = cols,
     aesthetics = c("colour", "fill")
   )+
-  geom_text(aes(label=value), size= 3 ,vjust=-0.25)
+  geom_text(aes(label = sprintf("%0.1f", round(value, digits = 1))), size= 3, color = "white"  ,vjust=-0.25)
 
 
 p
@@ -605,28 +608,33 @@ fluxo_1<- fluxo_1%>%
 cols<- c("DRU" = "blue",  "REMUNERACAO DAS DISPONIB. DO TESOURO NACIONAL" = "#4d4d4d", "TITULOS DE RESPONSABILID.DO TESOURO NACIONAL" = "#b3b3b3", "RECURSOS ORDINARIOS" = "#ff0000")
 
 
+
 p <- plot_ly(dru_ord_1)%>%
-ggplot( aes(x = ano, y = value)) +
+  ggplot( aes(x = ano, y = value)) +
   geom_bar(data = fluxo_1, aes(fill = tipo), stat = "identity") +
-  geom_point()+
-  geom_line(group=1)+
+  geom_point(color = "white", size =0.5)+
+  geom_line(group=1, color = "gray")+
   theme_bw()+
-  ggtitle("DRU x recursos destinados à seguridade social", "Governo Federal 2005 a 2018 (R$ bi nominais)")+
+  ggtitle("DRU x recursos fiscais destinados à seguridade social", "Governo Federal 2005 a 2018 (R$ bi nominais)")+
   xlab("")+
   ylab("")+
   theme(
     panel.grid.major.x = element_blank(),
-    panel.grid.minor.x = element_blank()
+    panel.grid.minor.x = element_blank(),
+    legend.text = element_text(size = 8)
   )+
-  scale_colour_manual(
+     scale_colour_manual(
     values = cols,
-  breaks = c("DRU", "RECURSOS ORDINARIOS", "REMUNERACAO DAS DISPONIB. DO TESOURO NACIONAL", "TITULOS DE RESPONSABILID.DO TESOURO NACIONAL"),
-  labels = c("DRU", "Recursos Ordinários", "Remuneração das Disponibilidades", "Títulos do Tesouro"),
+    breaks = c("DRU", "RECURSOS ORDINARIOS", "REMUNERACAO DAS DISPONIB. DO TESOURO NACIONAL", "TITULOS DE RESPONSABILID.DO TESOURO NACIONAL"),
+    labels = c("DRU", "Recursos Ordinários", "Remuneração das Disponibilidades", "Títulos do Tesouro"),
     aesthetics = c("colour", "fill")
-  )
-
+  )+
+  geom_text(aes(label = sprintf("%0.1f", round(value, digits = 1))), size= 3, color = "white"  ,vjust=-0.25)
 
 p
+
+
+
 
 
 print(fluxo_1)
