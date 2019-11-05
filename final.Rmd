@@ -1,11 +1,31 @@
 ---
-title: "sankey"
+title: "PEC Mais Brasil"
 output:
   html_document:
     code_folding: hide
 ---
 
+# Fonte de recursos: a chave para entender a desvinculação do orçamento federal
 
+No dia 05/11/2019, o governo federal anunciou medidas econômicas para equilibrar as contas públicas [https://www.youtube.com/watch?v=v9PENV_E7vM].
+
+Uma delas, a PEC "Mais Brasil", aborda a desvinculação de recursos orçamentários. Mas o que é a desvinculação de recursos?
+
+Para enteder a desvinculação de recursos precisamos compreender:
+
+1) como o dinheiro ingressa no caixa do governo (arrecadação)
+2) como o dinheiro sai do caixa do governo (pagamentos)
+3) como as fontes de recursos ligam os ingressos de caixa às saídas de caixa.
+
+Vamos utilizar dados abertos para ilustrar o fluxo orçamentário e o papel da fonte de recurso.
+
+Coletei os dados no portal siga Brasil do Senado Federal [https://www12.senado.leg.br/orcamento/sigabrasil] e depois preparei o código para gerar os gráficos e tabelas.
+
+Para maiores informações sobre fontes de recursos, acessar:
+
+1) Fontes de Recursos : [https://www12.senado.leg.br/orcamento/glossario/fonte-de-recursos] 
+
+2) Orçamento Fácil: vinculação de receitas: [https://www.youtube.com/watch?v=OPdGF5QGXyE]
 
 
 ```{r setup, include=FALSE}
@@ -13,8 +33,6 @@ knitr::opts_chunk$set(echo = TRUE)
 options(scipen=999)
 options(digits = 2)
 ```
-
-
 
 
 ```{r}
@@ -31,18 +49,14 @@ library(plotly)
 library(broman)
 ```
 
-
-
-
-
-
-
 ## Preparar os dados
-Utilizei dados abertos do Siga Brasil [http://www9.senado.gov.br/painelespecialista] para gerar as tabelas:   
-1) "nat_rec", com detalhes sobre os valores arrecadados.   
-2) "outflux", com detalhes sobre os pagamentos totais.   
 
-[https://pt.stackoverflow.com/questions/216852/adicionar-nota%C3%A7%C3%A3o-de-moeda-em-r]
+A partir do Siga Brasil baixamos as planilhas:
+
+1) "nat_rec", com detalhes sobre os valores arrecadados.   
+2) "outflux", com detalhes sobre os pagamentos totais (pagamentos da LOA + pagamentos de restos a pagar).   
+
+
 ```{r}
 
 # preparar a tabela com dados sobre valores arrecadados (entrada de caixa)
@@ -59,7 +73,7 @@ nat_rec <- nat_rec%>%
 # preparar a tabela com dados sobre pagamentos (saída de caixa)
 outflux <- read_excel("out.xlsx")
 
-## renomear as colunas para facilitar leitura
+# renomear as colunas para facilitar leitura
 
 colnames(outflux)<-c("ano","cat_cod","cat","gnd_cod","gnd","elemento_cod","elemento","esfera_out_cod","esfera_out","fonte_cod","fonte","res_primario_cod","res_primario","outflux_reais","outflux_ipca", "outflux_pib")
 
@@ -70,14 +84,19 @@ outflux <- outflux%>%
 
 ```
 
-# Faixa da discórdia:
-##(DRU x Orçamento da Seguridade Social)
+## Arrecadação
 
-datatable [https://rstudio.github.io/DT/]
+Vamos utilizar os dados do ano de 2018.
 
-[https://rstudio.github.io/DT/functions.html]
+Abaixo apresentamos a arrecadação por espécie, fonte e esfera orçamentária.
 
-[https://www.w3.org/TR/css-color-3/#svg-color]
+A profusão de espécies e fontes gera um gráfico semelhante a um emaranhado.
+
+Em vermelho temos a fonte de recursos ordinários, também conhecida como fonte 100.
+
+Inúmeras espécies irrigam os recursos ordinários: impostos, taxas, contribuições econômicas, contribuições sociais...
+
+Os recursos ordinários, por sua vez, irrigam o orçamento fiscal.
 
 
 
@@ -94,7 +113,7 @@ influx_s<- nat_rec%>%
  # transformar em bilhões de reais
    summarise(total = sum(influx_reais/1000000000))%>%
   arrange(desc(total ))
-  # cria variávies para identificar espécies e fontes menores que determinado valor (R$ 20 bi) e reclassificá-las como "demais"
+  # cria variávies para identificar espécies e fontes menores que determinado valor e reclassificá-las como "demais"
 influx_s<- influx_s%>%
     mutate(fonte_demais = ifelse(total > 0, fonte_name_cod, "demais fontes") )%>%
   mutate(especie_demais = ifelse(total > 0, especie_name_cod, "demais espécies") )%>%
@@ -185,9 +204,8 @@ p <- plot_ly(
 )
 
 
-
 # Create a shareable link to your chart
-#chart_link = api_create(p, filename="DRU")
+#chart_link = api_create(p, filename="emaranhado")
 #chart_link
 # exibir gráfico e tabela
 
@@ -208,7 +226,20 @@ p
 ```
 
 
+## A Faixa da discórdia
+### DRU x Orçamento da Seguridade Social
 
+Criamos um filtro para melhorar a compreensão do fluxo da arrecadação.
+
+Filtramos espécies e fontos com valores superiores a R$ 20 bilhões.
+
+Em azul temos a faixa da discórdia: a desvinculação da arrecadação de contribuições sociais.
+
+Parte da arrecadação das contribuições sociais é desvinculada via DRU.
+
+R$ 120 bilhões deixam de ingressar em fontes destinadas à seguridade social e são inicialmente redirecionadas para os recuros ordinários para em seguida irrigar o orçamento fiscal.
+
+O Governo Federal está propondo uma PEC nesse sentido, ou seja, desvincular recursos para ampliar o saldo da fonte 100, dos recursos ordinários.
 
 ```{r, Desvinculação de Recursos da União (R$ Bi)}
 
@@ -324,7 +355,29 @@ p <- plot_ly(
 p
 ```
 
+## Classificação por fonte/destinação de recurso
 
+A seguir, texto extrído de documento pulicado no site do Tesouro Nacional:
+
+A classificação orçamentária por fontes/destinações de recursos tem como objetivo identificar
+as fontes de financiamento dos gastos públicos. As fontes/destinações de recursos reúnem
+recursos oriundos de determinadas Naturezas de Receita, conforme regras previamente
+estabelecidas. Por meio do orçamento público, essas fontes/destinações são associadas a
+determinadas despesas de forma a evidenciar os meios para atingir os objetivos públicos.   
+
+Como mecanismo integrador entre a receita e a despesa, o código de fonte/destinação de
+recursos exerce um duplo papel no processo orçamentário. Para a receita orçamentária, esse
+código tem a finalidade de indicar a destinação de recursos para a realização de determinadas
+despesas orçamentárias. Para a despesa orçamentária, identifica a origem dos recursos que
+estão sendo utilizados.
+
+[http://www.tesouro.fazenda.gov.br/documents/10180/676688/Item+11+-+Classifica%C3%A7%C3%A3o+por+Fonte-Destina%C3%A7%C3%A3o+de+Recursos.pdf/988a562d-cd16-4b00-ad16-90d8b7f6bb8d]
+
+### Arrecadação e fonte CIDE
+
+Utilizamos a CIDE Combustíveis para ilustrar a classificação orçamentária por fontes/destinações de recursos.
+
+Em 2018, parte da arrecadação da CIDE Combustíveis foi carimbada como fonte 111 (CIDE) e parte como fonte 100 (recursos ordinários).
 
 ```{r, arrecadação CIDE (repetição do chunk anterior agora filtrado por natureza da receita "12200821" - CIDE) }
 # utilizar group_by para incluir as variáveis origem e esfera no gráfico sankey
@@ -436,6 +489,36 @@ p <- plot_ly(
 p
 ```
 
+## Pagamentos
+
+### Pagamentos e fonte CIDE 
+
+Até aqui o nosso foco foi o ingresso de recursos, a arrecadação.
+
+Agora, vamos nos concentrar da destinação dos recursos, a despesa.
+
+No caso específico da CIDE, a lei 10.336/2001 estabelece as seguintes destinações para os recursos arrecadados:
+
+I - pagamento de subsídios a preços ou transporte de álcool combustível, de gás natural e seus derivados e de derivados de petróleo;
+
+II - financiamento de projetos ambientais relacionados com a indústria do petróleo e do gás; e
+
+III - financiamento de programas de infra-estrutura de transportes.
+
+Não entramos nos detalhes da destinação dos recursos a ponto de verificar se a lei foi obedecida. De qualquer forma, segue link de planilha com as ações governamentais pagas com recursos da fonte CIDE.
+
+Nosso objetivo é apenas mostrar a destinação da CIDE por elemento da despesa.
+
+O gráfico abaixo aponta a destinação de recursos da CIDE para:
+
+1) obras e instalações   
+
+2) distribuição constitucional ou legal da receita   
+
+3) outros serviços de terceiro - pessoa jurídica   
+
+
+O Manual Técnico do Orçamento traz os conceitos de elemento da despesa: [http://www.planejamento.gov.br/assuntos/orcamento-1/informacoes-orcamentarias/arquivos/MTOs/mto_atual.pdf]
 
 ```{r, destinação da CIDE (semelhante ao chunk anterior, mas com dados dos pagamentos/outflux)}
 # filtra nodes objeto do estudo
@@ -519,11 +602,6 @@ links_final <- links[ , c("node.y", "node.x", "value")]
 colnames(links_final) <- c("source", "target", "value")
 
 
-
-
-
-
-
 p <- plot_ly(
     type = "sankey",
     orientation = "h",
@@ -559,6 +637,16 @@ p <- plot_ly(
 p
 
 ```
+## Todos os pagamento de 2018
+
+### Detalhamento por esfera, indicador de resultado primário, fonte e elemento da despesa
+
+
+Vamos ampliar o escopo da nossa análise. O gráfico abaixo traz todos os pagamentos efetuados em 2018. A informação é detalhada por, esfera, indicador de resultado primário, fonte e elemente da despesa.Destacamos, em vermelho, os recursos ordinários.   
+
+Os recursos ordinários foram utilizados para pagar 51 tipos diferentes de elementos da despesas.
+
+
 ```{r, Governo Feredal 2018: pagamentos por esfera, indicador de resultado primário, fonte de recurso e elemento da despesa (R$ bi)}
 outflux_s<- outflux%>%
   filter( outflux_reais>1, ano == "2018" )%>%
@@ -697,8 +785,16 @@ datatable(outflux_s,filter = 'top', options = list(
 
 ```
 
+## Fonte e pagamentos de pensão e aposentadoria
 
+O controle por fonte permite visualizar quais fontes o governo utilizou para pagar despesas com pensões e aposentadorias.
 
+Destacamos, em vermelho quatro, pontos interessantes. Em termos nominais, no período de 2005 a 2018, o governo destinou para a seguridade social:
+
+1) R$ 539 bi de recursos ordinários
+2) R$ 197 bi de recursos provenientes da remuneração das disponibilidades do Tesouro Nacional
+3) R$ 163 bi de recursos provenientes de Títulos de responsabilidade do Tesouro Nacioanal
+4) R$ 185 bi de recursos do orçamento fiscal para cobrir despesas com aposentadorias e pensões
 
 
 ```{r, Governo Federal 2005 a 2018: fontes de recurso utilizadas para pagamentos de pensão e aposentadoria (R$ Bi nominais)}
@@ -706,27 +802,18 @@ datatable(outflux_s,filter = 'top', options = list(
 # Governo Federal 2005 a 2018: fontes de recurso utilizadas para pagamentos de pensão e aposentadoria (R$ Bi nominais)
 
 outflux_s<- outflux%>%
+  # filtrar pensao e aponsentadoria
   filter( outflux_reais>1, str_detect(elemento, "PENS|APOSEN" ))%>%
   group_by(fonte,esfera_out, elemento)%>%
   summarise(value = sum(outflux_reais/1000000000))%>%
   arrange(desc(value ))
 
 
-
-
 # arredondar valor para melhorar visualização da tabela
 
 outflux_s$value<-round(outflux_s$value, 1)
 
-
-
-
-
-
-
-
 names<- c()
-
 
 # loop para extrair nomes dos nodes a partir da df outflux_s
 for(i in 1:ncol(outflux_s)-1)
@@ -738,7 +825,6 @@ names <- c(names,outflux_s[j,i]) ;
 }
 
 
-
 # obeter apenas os nomes únicos.
 name<- unique(as.character(names))
 
@@ -748,9 +834,6 @@ name<- unique(as.character(names))
 nodes<- data.frame(cbind(node = c((0:(length(name)-1))), name))
 
 nodes$node <- as.numeric(as.character(nodes$node))
-
-
-
 
 
 ## criar links
@@ -783,15 +866,8 @@ links <- merge(links, nodes, by.x = "target", by.y = "name")
 links <- merge(links, nodes, by.x = "source", by.y = "name")
 
 
-
-
 links_final <- links[ , c("node.y", "node.x", "value")]
 colnames(links_final) <- c("source", "target", "value")
-
-
-
-
-
 
 
 p <- plot_ly(
@@ -844,14 +920,22 @@ datatable(outflux_s,filter = 'top', options = list(
 
 ```
 
+## DRU x Recursos Ordinários
 
+Vimos anteiormente que parte da arrecadação das contribuições sociais segue o seguinte fluxo:
 
-[https://bookdown.org/lyzhang10/lzhang_r_tips_book/how-to-plot-data.html]
+1) é desvinculada via DRU,
+2) irriga a fonte de recursos ordinários e depois
+3) é direcionada para o orçamento fiscal.
 
+Agora vamos apurar o saldo das transferências líquidas entre o orçamento da seguridade social e o orçamento fiscal.
 
-[https://aledemogr.com/2017/05/29/plots-based-on-un-data-in-r/]
+O saldo é positivo quando a seguridade transfere mais recursos do que recebe. Ou seja, a desvinculação via DRU foi maior que o retorno via recuros ordinários. Por exemplo, em 2005 a DRU foi de 32 bi, enquando 8,5 bi retornaram para a seguridade social via recursos ordinários. Logo a seguridade foi superavitária em 24,5 bi e o superávit da seguridade foi utilizado para arcar com despesas fiscais.
 
-[https://plot.ly/r/graphing-multiple-chart-types/]
+É importante ressaltar que apuramos apensas os recursos odinários destinados para a seguridade social. Contudo, recursos ordinários da esfera fiscal também podem ser utilizados para pagar despesas típicas da seguridade social, reduzindo assim o superávit da seguridade social.
+
+Sob esse prisma, a seguridade fiscal foi superavitária em todo o período, com exceção de 2016 e 2017. Contudo, o déficit de apenas dois anos é praticamente igual a todo o superavít do período.
+
 
 ```{r, saldo DRU x Fonte 100}
 #Recursos de contribuições sociais carimbados como fonte 100 (recursos ordinários)
@@ -878,7 +962,6 @@ ord_ano<-ord%>%
 
 #ord_ano<-ord_ano%>%
  # mutate(tipo = "fonte_100")
-
 
 
 dru_ord<- merge(ord_ano, dru_ano, by.x = "ano", by.y = "ano")
@@ -916,28 +999,22 @@ p
 
 
 
-
 #chart_link = api_create(p, filename="dru x fontes 100")
 #chart_link
-
-
 
 
 ```
 
 
+## DRU x Fontes fiscais
+
+Para ficar mais completa, devemos incluir outras fontes que irrigam o orçamento da seguridade social.
+
+Abaixo exibimos o gráfico após a inclusão das fontes REMUNERACAO DAS DISPONIB. DO TESOURO NACIONAL", "TITULOS DE RESPONSABILID.DO TESOURO NACIONAL".
+
+Com a inclusão de apenas essas duas fontes, o cenário muda drasticamente. A situação se inverte e a seguridade social passa de ligeiramente superavitária para deficitária.
 
 
-
-
-
-
-scale_manual: Create your own discrete scale
-In ggplot2: Create Elegant Data Visualisations Using the Grammar of Graphics
-
-[https://rdrr.io/cran/ggplot2/man/scale_manual.html]
-
-[https://www.w3schools.com/colors/colors_picker.asp?colorhex=FF0000]
 
 ```{r, saldo DRU x fontes fiscais}
 #Recursos de contribuições sociais carimbados como fonte 100 (recursos ordinários)
@@ -983,7 +1060,6 @@ fluxo_1<- fluxo_1%>%
   arrange((tipo))
 
 
-
 fluxo_1$value<-round(fluxo_1$value,1)
 
 p <- plot_ly(dru_ord_1)%>%
@@ -1012,100 +1088,31 @@ p <- plot_ly(dru_ord_1)%>%
 p
 
 
-
-
-
-
 #chart_link = api_create(p, filename="dru x fontes fiscais")
 #chart_link
 
-## fontes fiscais por cor fill.
-
-
 
 ```
 
 
 
-```{r, influx origem x esfera x fonte}
-influx_s<- nat_rec%>%
-  # filtra pelo ano de 2018 e valore maiores que R$ 1 bilhão
-  filter(ano == "2018",fonte_cod == "100",influx_reais>1000000000 )%>%
-  group_by(especie, esfera_in, fonte)%>%
-  summarise(value = sum(influx_reais/1000000000))%>%
-  arrange(desc(value ))
-
-# arredondar valor para melhorar visualização da tabela
-influx_s$value<-round(influx_s$value, 1)
-names<- vector()
-nodes<- vector()
+Obtive ajuda importante nos seguintes endereços:
 
 
-# loop para extrair nomes dos nodes a partir da df influx_s
-for(i in 1:ncol(influx_s)-1)
-{
-for(j in 1:NROW(influx_s[,i]))
-{
-names <- c(names,influx_s[j,i]) ;
-}
-}
+1) elaborar datatable:   
+  [https://rstudio.github.io/DT/]   
+  [https://rstudio.github.io/DT/functions.html]   
 
-# obeter apenas os nomes únicos.
-name<- unique(as.character(names))
+2) definir cores:    
+  [https://www.w3.org/TR/css-color-3/#svg-color]   
+  [https://www.w3schools.com/colors/colors_picker.asp?colorhex=FF0000]   
 
-## reverter a ordem de nodes 
-
-# criar nodes
-nodes<- data.frame(cbind(node = c((0:(length(name)-1))), name))
-
-nodes$node <- as.numeric(as.character(nodes$node))
-
-## criar links
-
-links <- influx_s%>%
-  group_by_at(1:2)%>%
-  summarise(value = sum(value))
-colnames(links)<-c("source","target","value")
-##
-links<-as.data.frame(links)
-
-## criar links adcionais caso a df influx_s tenha mais de duas variáveis
-
-for(i in 1:(ncol(influx_s)-3))
-{
-loop_link <- influx_s%>%
-  group_by_at((1+i):(2+i))%>%
-  summarise(teste = sum(value))
-loop_link<-as.data.frame(loop_link)
-colnames(loop_link)<-c("source","target","value")
-
-# juntar os links
-links<-rbind(links,loop_link)
-}
-
-# mesclar nodes aos valores
-links <- merge(links, nodes, by.x = "target", by.y = "name")
-links <- merge(links, nodes, by.x = "source", by.y = "name")
-
-## remover duplicados 
-links <- distinct(links, target,source, .keep_all= TRUE)
-
-links_final <- links[ , c("node.y", "node.x", "value")]
-colnames(links_final) <- c("source", "target", "value")
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
+3) formatar gráficos:   
+  [file:///C:/Users/03092181794/Desktop/R/sankey/final.html]   
+  [https://bookdown.org/lyzhang10/lzhang_r_tips_book/how-to-plot-data.html]   
+  [https://aledemogr.com/2017/05/29/plots-based-on-un-data-in-r/]   
+  [https://plot.ly/r/graphing-multiple-chart-types/]   
+  
 
 
 
